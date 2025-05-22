@@ -1,0 +1,11 @@
+venv/
+mlruns/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+results/*
+!results/exp_log.csv
+models/*
+!models/baseline.pkl
