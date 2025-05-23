@@ -28,7 +28,7 @@ def train_model(X, y, X_test, params, n_splits, random_seed):
         model = lgb.LGBMClassifier(**params)
         model.fit(X_train, y_train,
                   eval_set=[(X_val, y_val)],
-                  callbacks=[lgb.early_stopping(100, verbose=False)])
+                  callbacks=[lgb.early_stopping(30, verbose=False)])
 
         val_preds = model.predict_proba(X_val)[:, 1]
         oof_preds[val_index] = val_preds

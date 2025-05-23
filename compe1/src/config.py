@@ -18,19 +18,20 @@ ID_COLUMN = "PassengerId"   # 提出ファイルのIDカラム
 # モデルパラメータ (例)
 LGB_PARAMS = {
     'objective': 'binary',
-    # 'metric': 'binary_logloss',
+    'metric': ['binary_logloss', 'accuracy'],
     'boosting_type': 'gbdt',
-    'n_estimators': 100,
+    'n_estimators': 250,
     'learning_rate': 0.05,
-    'num_leaves': 31,
-    'max_depth': -1,
+    'num_leaves': 25,
+    'max_depth': 7,
+    'min_child_samples': 30,
     'seed': 42,
     'n_jobs': -1,
     'verbose': -1,
-    'colsample_bytree': 0.8,
-    'subsample': 0.8,
-    'reg_alpha': 0.1,
-    'reg_lambda': 0.1,
+    'colsample_bytree': 0.7,
+    'subsample': 0.7,
+    'reg_alpha': 0.2,
+    'reg_lambda': 0.2,
 }
 N_SPLITS = 5 # CVの分割数
 RANDOM_SEED = 42
