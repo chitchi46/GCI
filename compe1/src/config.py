@@ -20,7 +20,7 @@ LGB_PARAMS = {
     'objective': 'binary',
     # 'metric': 'binary_logloss',
     'boosting_type': 'gbdt',
-    'n_estimators': 10000,
+    'n_estimators': 100,
     'learning_rate': 0.05,
     'num_leaves': 31,
     'max_depth': -1,
