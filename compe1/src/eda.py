@@ -3,6 +3,7 @@ import matplotlib
 matplotlib.use('Agg') # バックエンドを設定
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os # 追加
 
 def analyze_dataframe(df: pd.DataFrame, df_name: str):
     print(f"--- Analyzing DataFrame: {df_name} ---")
@@ -68,10 +69,49 @@ def summarize_target_distribution(df: pd.DataFrame, target_col: str):
         print(f"グラフの描画中にエラーが発生しました: {e}")
         print("matplotlib や seaborn が正しくインストールされているか確認してください。")
 
-def visualize_feature_vs_target(df: pd.DataFrame, feature_col: str, target_col: str):
-    """特徴量と目的変数の関係を可視化する関数"""
-    # TODO: 実装
-    pass
+def visualize_feature_vs_target(df: pd.DataFrame, feature_col: str, target_col: str, output_dir: str = "results/eda_plots"):
+    """特徴量と目的変数の関係を可視化し、ファイルに保存する関数"""
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        print(f"Created directory: {output_dir}")
+
+    plt.figure(figsize=(10, 6))
+    safe_feature_name = "".join(c if c.isalnum() else "_" for c in feature_col)
+    save_path_base = os.path.join(output_dir, f"{safe_feature_name}_vs_{target_col}")
+
+    print(f"Visualizing {feature_col} vs {target_col}...")
+
+    if df[feature_col].dtype == 'object' or (pd.api.types.is_numeric_dtype(df[feature_col]) and df[feature_col].nunique() < 20):
+        # カテゴリカル特徴量 (またはユニーク数が少ない数値特徴量)
+        sns.countplot(x=feature_col, hue=target_col, data=df, palette="viridis")
+        plt.title(f'{feature_col} vs {target_col} (Count Plot)', fontsize=15)
+        plt.xticks(rotation=45, ha='right')
+        current_save_path = f"{save_path_base}_countplot.png"
+    elif pd.api.types.is_numeric_dtype(df[feature_col]):
+        # 数値特徴量 - ヒストグラム
+        sns.histplot(data=df, x=feature_col, hue=target_col, kde=True, multiple="stack", palette="viridis")
+        plt.title(f'{feature_col} vs {target_col} (Histogram & KDE)', fontsize=15)
+        current_save_path = f"{save_path_base}_histplot.png"
+        plt.savefig(current_save_path)
+        print(f"Saved plot: {current_save_path}")
+        plt.close()
+
+        # 数値特徴量 - ボックスプロット
+        plt.figure(figsize=(8, 5))
+        sns.boxplot(x=target_col, y=feature_col, data=df, palette="viridis")
+        plt.title(f'{feature_col} vs {target_col} (Box Plot)', fontsize=15)
+        current_save_path = f"{save_path_base}_boxplot.png"
+    else:
+        print(f"Skipping visualization for {feature_col}: Not clearly categorical or numeric, or too many unique values.")
+        plt.close()
+        return
+
+    plt.xlabel(feature_col, fontsize=12)
+    plt.ylabel("Count" if "countplot" in current_save_path else feature_col, fontsize=12)
+    plt.tight_layout()
+    plt.savefig(current_save_path)
+    print(f"Saved plot: {current_save_path}")
+    plt.close()
 
 if __name__ == '__main__':
     print("Starting EDA script...")

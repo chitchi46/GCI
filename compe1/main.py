@@ -1,18 +1,22 @@
 # メイン処理を実行するスクリプト
 import pandas as pd
 import time
-import matplotlib.pyplot as plt # グラフ表示のために追加
+# import matplotlib.pyplot as plt # visualize_feature_vs_target でファイル保存するため、メインでは不要
+import os
 
 from src.data_loader import load_train_data, load_test_data, check_data_integrity
-from src.eda import summarize_target_distribution
+from src.eda import summarize_target_distribution, visualize_feature_vs_target # visualize_feature_vs_target をインポート
 from src.feature_engineering import create_features, select_features
-from src.model import train_lgbm_cv, save_model
+from src.model import train_lgbm_cv, save_model # model.py の関数 (現状未実装)
+# from src.trainer import train_model # trainer.py の関数 (実装済み、model.pyの代替として検討)
 from src.tuning import run_optuna_lgbm # (必要に応じて追加)
 # from src.ensemble import average_predictions # (必要に応じて追加)
-from src.submission import create_submission_file
-from src.utils import seed_everything, log_experiment, get_git_commit_hash
+from src.submission import create_submission_file # submission.py の関数 (現状未実装)
+# from src.utils import save_submission_file # utils.py の関数 (実装済み、submission.pyの代替として検討)
+from src.utils import seed_everything, log_experiment_results, get_git_commit_hash # log_experiment は log_experiment_results を使用
 
 # --- 定数 --- (config.py に移すことも検討)
+# config.pyからも読めるようにするなら、そちらに集約し、ここでは import src.config as cfg のようにする
 TRAIN_DATA_PATH = "data/train.csv"
 TEST_DATA_PATH = "data/test.csv"
 TARGET_COLUMN = "Perished"
@@ -20,13 +24,17 @@ EXPERIMENT_ID_PREFIX = "exp"
 RANDOM_STATE = 42
 N_SPLITS_CV = 5
 N_TRIALS_OPTUNA = 100 # ユーザー指定は <=100
+EDA_PLOTS_DIR = "results/eda_plots" # EDAグラフの保存先ディレクトリ
 
 def main():
     """メイン処理"""
     start_time = time.time()
+    current_time_str = time.strftime("%Y%m%d%H%M%S")
+    experiment_id = f"{EXPERIMENT_ID_PREFIX}_{current_time_str}"
+    git_hash = get_git_commit_hash()
     seed_everything(RANDOM_STATE)
-    experiment_id = f"{EXPERIMENT_ID_PREFIX}_{time.strftime('%Y%m%d%H%M%S')}"
-    print(f"実験ID: {experiment_id} を開始します。")
+    
+    print(f"実験ID: {experiment_id} (Git: {git_hash}) を開始します。")
 
     # 1. データ読み込みと整合性チェック
     print("\n--- 1. データ読み込みと整合性チェック ---")
@@ -37,65 +45,60 @@ def main():
 
     # 2. EDA
     print("\n--- 2. EDA ---")
+    # 目的変数の分布
     summarize_target_distribution(train_df, TARGET_COLUMN)
-    # plt.show() # summarize_target_distribution で準備されたグラフを表示
+    
+    # 主要な特徴量と目的変数の関係を可視化
+    print("\n--- EDA: 主要な特徴量と目的変数の関係の可視化 ---")
+    features_to_visualize = ['Pclass', 'Sex', 'Embarked', 'SibSp', 'Parch', 'Age', 'Fare']
+    # Age はビン化も検討 (例: pd.cut(train_df['Age'], bins=[0, 10, 20, 30, 40, 50, 60, 70, 80])) を新たな特徴量として追加し、それを可視化
+    # Fare も対数変換やビン化を検討
+    
+    # EDA_PLOTS_DIR は main.py から見た相対パス
+    # visualize_feature_vs_target 内部の output_dir もこのパスを基準とする
+    if not os.path.exists(EDA_PLOTS_DIR):
+        os.makedirs(EDA_PLOTS_DIR)
+        print(f"Created directory for EDA plots: {EDA_PLOTS_DIR}")
+
+    for feature in features_to_visualize:
+        if feature in train_df.columns:
+            visualize_feature_vs_target(train_df, feature_col=feature, target_col=TARGET_COLUMN, output_dir=EDA_PLOTS_DIR)
+        else:
+            print(f"Warning: 特徴量 '{feature}' は訓練データに存在しません。スキップします。")
+
+    # (EDAの続き: 相関分析、欠損値処理方針決定、外れ値検討、特徴量エンジニアリングアイデア出しなど)
+    # print("\n--- EDA: 相関分析 ---")
+    # plt.figure(figsize=(12, 10))
+    # sns.heatmap(train_df[features_to_visualize + [TARGET_COLUMN]].corr(), annot=True, cmap='coolwarm', fmt='.2f')
+    # plt.title('Feature Correlation Heatmap')
+    # correlation_save_path = os.path.join(EDA_PLOTS_DIR, "correlation_heatmap.png")
+    # plt.savefig(correlation_save_path)
+    # plt.close()
+    # print(f"Correlation heatmap saved to {correlation_save_path}")
 
     # 3. 特徴量エンジニアリング
-    print("\n--- 3. 特徴量エンジニアリング ---")
-    # train_feat_df = create_features(train_df.copy()) # TODO: 実装後にコメント解除
-    # test_feat_df = create_features(test_df.copy())   # TODO: 実装後にコメント解除
-    # selected_features = select_features(train_feat_df, TARGET_COLUMN) # TODO: 実装後にコメント解除
-    # X_train = train_feat_df[selected_features]
+    print("\n--- 3. 特徴量エンジニアリング (スキップ) ---")
+    # train_feat_df = create_features(train_df.copy()) # TODO: feature_engineering.py の実装後
+    # test_feat_df = create_features(test_df.copy())   # TODO: feature_engineering.py の実装後
+    # X_train_selected, selected_feature_names = select_features(train_feat_df, TARGET_COLUMN) # TODO: feature_engineering.py の実装後
+    # X_test_selected = test_feat_df[selected_feature_names]
     # y_train = train_df[TARGET_COLUMN]
-    # X_test = test_feat_df[selected_features]
-    # test_ids = test_df["PassengerId"] # 提出用にIDを保持
 
     # 4. ベースラインモデル学習 (LightGBM)
-    print("\n--- 4. ベースラインモデル学習 (LightGBM) ---")
-    lgbm_params = {
-        'objective': 'binary',
-        'metric': 'accuracy',
-        'random_state': RANDOM_STATE,
-        'n_estimators': 1000, # Optunaで調整
-        'learning_rate': 0.05, # Optunaで調整
-        'num_leaves': 31, # Optunaで調整
-        # その他Optunaで調整するパラメータ
-        'verbose': -1,
-        'n_jobs': -1,
-    }
-    #oof_preds, test_preds, cv_score, best_model = train_lgbm_cv(X_train, y_train, params=lgbm_params, n_splits=N_SPLITS_CV) # TODO: 実装後にコメント解除
-    # print(f"ベースラインモデル (LightGBM) CV Accuracy: {cv_score:.4f}")
-    # save_model(best_model, f"baseline_lgbm_{experiment_id}.pkl")
+    print("\n--- 4. ベースラインモデル学習 (スキップ) ---")
+    # lgbm_params = { ... } # config.py から読み込むか、ここで定義
+    # cv_models, oof_preds, test_preds, cv_score = train_lgbm_cv(X_train_selected, y_train, params=lgbm_params, n_splits=N_SPLITS_CV) # model.py を使う場合
+    # cv_models, oof_preds, test_preds, cv_score = train_model(X_train_selected, y_train, X_test_selected, params=lgbm_params, n_splits=N_SPLITS_CV, random_seed=RANDOM_STATE) # trainer.py を使う場合
+    # print(f"ベースラインモデル CV Accuracy: {cv_score:.4f}")
+    # save_model(cv_models[0], f"baseline_lgbm_{experiment_id}.pkl") # model.py を使う場合 (utils.pyのsave_model_artifactも検討)
 
-    # 5. Optunaによるチューニング (省略可能、または別スクリプト)
-    print("\n--- 5. Optunaによるチューニング (スキップ) ---")
-    # study = run_optuna_lgbm(X_train, y_train, n_trials=N_TRIALS_OPTUNA, n_splits=N_SPLITS_CV)
-    # print(f"Optuna Best CV Score: {study.best_value:.4f}")
-    # print(f"Optuna Best Params: {study.best_params}")
-    # tuned_lgbm_params = {**lgbm_params, **study.best_params}
-    # oof_preds_tuned, test_preds_tuned, cv_score_tuned, best_model_tuned = train_lgbm_cv(X_train, y_train, params=tuned_lgbm_params, n_splits=N_SPLITS_CV)
-    # print(f"チューニング済みLightGBM CV Accuracy: {cv_score_tuned:.4f}")
-    # save_model(best_model_tuned, f"tuned_lgbm_{experiment_id}.pkl")
-
-    # 6. アンサンブル (省略可能)
-    print("\n--- 6. アンサンブル (スキップ) ---")
-
-    # 7. 提出ファイル作成
-    print("\n--- 7. 提出ファイル作成 ---")
-    # final_predictions = test_preds_tuned # チューニング後モデルの予測を使用する場合
-    # create_submission_file(test_df.copy(), final_predictions, experiment_id, target_col=TARGET_COLUMN) # TODO: 実装後にコメント解除
-
-    # 8. 結果のロギング
-    print("\n--- 8. 結果のロギング ---")
-    # description = "ベースライン LightGBM モデル"
-    # log_experiment(experiment_id, cv_score, description) # TODO: 実装後にコメント解除
-    # if 'cv_score_tuned' in locals():
-    #     description_tuned = "Optuna チューニング済み LightGBM モデル"
-    #     log_experiment(f"{experiment_id}_tuned", cv_score_tuned, description_tuned)
+    # (以降の処理は現状スキップ)
 
     end_time = time.time()
     print(f"\n実験ID: {experiment_id} が完了しました。処理時間: {end_time - start_time:.2f} 秒")
-    # print(f"最良CVスコア: {max(cv_score, cv_score_tuned if 'cv_score_tuned' in locals() else 0):.4f}") # TODO: 修正
+    # log_experiment_results(current_time_str, experiment_id, cv_score if 'cv_score' in locals() else -1, "Initial EDA visualization run", git_hash)
 
 if __name__ == "__main__":
+    import os # mainスコープでのosインポートを追加 (EDA_PLOTS_DIR作成用)
     main()
+ 
