@@ -1,9 +1,10 @@
 # メイン処理を実行するスクリプト
 import pandas as pd
 import time
+import matplotlib.pyplot as plt # グラフ表示のために追加
 
 from src.data_loader import load_train_data, load_test_data, check_data_integrity
-from src.eda import summarize_target_distribution # (必要に応じて追加)
+from src.eda import summarize_target_distribution
 from src.feature_engineering import create_features, select_features
 from src.model import train_lgbm_cv, save_model
 from src.tuning import run_optuna_lgbm # (必要に応じて追加)
@@ -34,9 +35,10 @@ def main():
     train_df = check_data_integrity(train_df, "訓練データ")
     test_df = check_data_integrity(test_df, "テストデータ")
 
-    # 2. EDA (必要に応じて実行、またはNotebookで実施)
-    print("\n--- 2. EDA (スキップ) ---")
-    # summarize_target_distribution(train_df, TARGET_COLUMN) # TODO: 実装後にコメント解除
+    # 2. EDA
+    print("\n--- 2. EDA ---")
+    summarize_target_distribution(train_df, TARGET_COLUMN)
+    plt.show() # summarize_target_distribution で準備されたグラフを表示
 
     # 3. 特徴量エンジニアリング
     print("\n--- 3. 特徴量エンジニアリング ---")
