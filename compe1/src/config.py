@@ -15,6 +15,9 @@ EXP_LOG_PATH = "results/exp_log.csv" # main.py から見たパス
 TARGET_COLUMN = "Perished" # 目的変数 (README.ipynb より)
 ID_COLUMN = "PassengerId"   # 提出ファイルのIDカラム
 
+# 実験管理
+EXPERIMENT_ID_PREFIX = "exp" # 追加
+
 # モデルパラメータ (例)
 LGB_PARAMS = {
     'objective': 'binary',
@@ -25,7 +28,7 @@ LGB_PARAMS = {
     'num_leaves': 25,
     'max_depth': 7,
     'min_child_samples': 30,
-    'seed': 42,
+    'seed': 42, # LGBMパラメータ内のseed
     'n_jobs': -1,
     'verbose': -1,
     'colsample_bytree': 0.7,
@@ -34,7 +37,9 @@ LGB_PARAMS = {
     'reg_lambda': 0.2,
 }
 N_SPLITS = 5 # CVの分割数
+N_SPLITS_CV = 5 # CVの分割数 (main.pyでの参照用として追加、N_SPLITSと値を合わせる)
 RANDOM_SEED = 42
+RANDOM_STATE = 42 # 実験全体のランダムシード (main.pyでの参照用として追加、RANDOM_SEEDと値を合わせる)
 
 # MLflow 設定
 DEFAULT_EXPERIMENT_NAME = "Titanic_Survival_Prediction" 
