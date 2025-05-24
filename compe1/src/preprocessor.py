@@ -8,7 +8,7 @@ from src import config # config.py から定数をインポート
 def preprocess_data(train_df: pd.DataFrame, test_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     """
     データの前処理を行う関数 (EDAに基づき実装)
-    Ageは線形回帰で補完、CabinからはDeck情報を抽出
+    Ageは線形回帰で補完、CabinからはDeck情報を抽出、Fareは対数変換
     """
     print("Starting preprocessing...")
     
@@ -60,7 +60,7 @@ def preprocess_data(train_df: pd.DataFrame, test_df: pd.DataFrame) -> tuple[pd.D
     age_known = age_df[age_df['Age'].notnull()]
     age_unknown = age_df[age_df['Age'].isnull()]
 
-    if not age_unknown.empty and not age_known.empty(): # age_knownも空でないことを確認
+    if not age_unknown.empty and not age_known.empty: # age_knownも空でないことを確認
         X_age_train = age_known.drop('Age', axis=1)
         y_age_train = age_known['Age']
         X_age_predict = age_unknown.drop('Age', axis=1)
@@ -93,6 +93,10 @@ def preprocess_data(train_df: pd.DataFrame, test_df: pd.DataFrame) -> tuple[pd.D
         print("No missing Age values to impute or no data to predict for.")
 
     combined_df.drop(['Title_Encoded_For_Age', 'Deck_Encoded_For_Age'], axis=1, inplace=True)
+
+    # Fare の対数変換 (歪度を減らし、外れ値の影響を緩和)
+    combined_df['Fare'] = np.log1p(combined_df['Fare'])
+    print("Applied log1p transformation to Fare.")
 
     # 6. FamilySize と IsAlone を作成 (既存処理)
     combined_df['FamilySize'] = combined_df['SibSp'] + combined_df['Parch'] + 1

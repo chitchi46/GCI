@@ -133,7 +133,7 @@ def visualize_feature_vs_target(
             ax.set_xlabel(feature_col, fontsize=12)
             ax.set_ylabel('Count', fontsize=12)
             ax.legend(title=target_col)
-            ax.tick_params(axis='x', rotation=45, ha='right') # ラベルが重ならないように調整
+            plt.setp(ax.get_xticklabels(), rotation=45, ha="right") # 修正: X軸ラベルの回転と水平位置調整
             plt.tight_layout() # レイアウト調整
             
             save_path_bar = os.path.join(output_dir, f"{filename_prefix}{safe_feature_name}_vs_{safe_target_name}_barplot.png")
