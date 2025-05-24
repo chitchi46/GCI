@@ -1,4 +1,6 @@
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg') # バックエンドを設定
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -40,30 +42,31 @@ def analyze_dataframe(df: pd.DataFrame, df_name: str):
 def summarize_target_distribution(df: pd.DataFrame, target_col: str):
     """目的変数の分布を集計・表示する関数"""
     print(f"\n--- 目的変数 '{target_col}' の分布 ---")
-    counts = df[target_col].value_counts()
-    percentages = df[target_col].value_counts(normalize=True) * 100
-    
-    dist_summary = pd.DataFrame({
-        'カウント': counts,
-        '割合 (%)': percentages
-    })
+    # value_counts() はデフォルトでインデックスが値、値がカウントになる
+    # これを DataFrame にする際は、reset_index() を使って整形することが多い
+    dist_summary = df[target_col].value_counts().reset_index()
+    dist_summary.columns = [target_col, 'カウント'] # 列名を適切に設定
+    dist_summary['割合 (%)'] = (dist_summary['カウント'] / dist_summary['カウント'].sum()) * 100
+    # target_col をインデックスにする場合（任意、表示のため）
+    # dist_summary = dist_summary.set_index(target_col)
     print(dist_summary)
     
-    # 簡単な棒グラフで可視化 (Colab環境を想定し、表示されるようにする)
     try:
         plt.figure(figsize=(6, 4))
-        sns.countplot(x=target_col, data=df)
+        # dist_summary を使ってプロットすると、集計済みのデータから作れる
+        # sns.barplot(x=target_col, y='カウント', data=dist_summary.reset_index()) # reset_index() はset_indexした場合
+        sns.countplot(x=target_col, data=df) # 元のデータでcountplotでもOK
         plt.title(f"'{target_col}' の分布")
         plt.xlabel(target_col)
         plt.ylabel("カウント")
-        # Colabで表示するために plt.show() を呼び出すか、main側で制御
-        # ここでは一旦 main 側で plt.show() を呼ぶ想定で plt.show() は書かない
-        # ただし、Colabで直接この関数をテストする場合は plt.show() が必要
-        print(f"'{target_col}' の分布グラフの準備ができました。main.py側で表示してください。")
-        plt.show()
+        # plt.show() の代わりにファイルに保存
+        image_path = "target_distribution.png"
+        plt.savefig(image_path)
+        plt.close() # メモリ解放のために図を閉じる
+        print(f"'{target_col}' の分布グラフを {image_path} に保存しました。")
     except Exception as e:
         print(f"グラフの描画中にエラーが発生しました: {e}")
-        print("matplotlib や seaborn が正しくインストールされているか、GUI環境か確認してください。")
+        print("matplotlib や seaborn が正しくインストールされているか確認してください。")
 
 def visualize_feature_vs_target(df: pd.DataFrame, feature_col: str, target_col: str):
     """特徴量と目的変数の関係を可視化する関数"""
