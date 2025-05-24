@@ -1,7 +1,7 @@
 # 特徴量エンジニアリングを担当するモジュール
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import LabelEncoder # 今回は直接使わないが、将来的に使う可能性あり
+# from sklearn.preprocessing import LabelEncoder # 今回は直接使わないが、将来的に使う可能性あり
 
 def create_base_features(X_train: pd.DataFrame, X_test: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -92,67 +92,6 @@ def create_base_features(X_train: pd.DataFrame, X_test: pd.DataFrame) -> tuple[p
     print(f"Features after base FE: {X_train_fe.columns.tolist()}")
     print("Feature engineering (base features) finished.")
     return X_train_fe, X_test_fe
-
-def create_additional_features(X_train: pd.DataFrame, X_test: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    追加の特徴量エンジニアリングを行う。
-    FamilySizeのカテゴリ化、Ticketが数値かどうかの特徴量作成など。
-
-    Args:
-        X_train (pd.DataFrame): ベースの特徴量エンジニアリング後の訓練データ
-        X_test (pd.DataFrame): ベースの特徴量エンジニアリング後のテストデータ
-
-    Returns:
-        tuple[pd.DataFrame, pd.DataFrame]: 追加の特徴量エンジニアリング後の訓練データとテストデータ
-    """
-    print("Starting additional feature engineering...")
-    X_train_add = X_train.copy()
-    X_test_add = X_test.copy()
-
-    # --- FamilySize のカテゴリ化 ---
-    # FamilySize は preprocessor で SibSp + Parch + 1 として作成済み想定
-    # IsAlone も preprocessor で作成済み
-    # ここでは FamilySize を 'Alone'(1), 'Small'(2-4), 'Large'(5+) に分類
-    # IsAlone と一部情報が重複するが、異なる観点からの特徴となりうる
-    family_bins = [0, 1, 4, X_train_add['FamilySize'].max() + 1] # 0, 1 (Alone), 2-4 (Small), 5+ (Large)
-    family_labels = ['Alone', 'SmallFamily', 'LargeFamily'] # 数値ラベルの方が扱いやすいので後で変更
-    
-    # ラベルエンコーディングしやすいように、まずはカテゴリ文字列を割り当てる
-    X_train_add['FamilySize_Cat_Str'] = pd.cut(X_train_add['FamilySize'], bins=family_bins, labels=family_labels, right=True, include_lowest=True)
-    X_test_add['FamilySize_Cat_Str'] = pd.cut(X_test_add['FamilySize'], bins=family_bins, labels=family_labels, right=True, include_lowest=True)
-
-    # Label Encoding (FamilySize_Cat)
-    # 注意: pd.cutでright=True, include_lowest=Trueを指定した場合、最小値(ここでは1)は最初のビンに含まれる。
-    # FamilySize=1 (Alone), 2,3,4 (Small), 5+ (Large)
-    # 訓練データとテストデータでマッピングがずれないように、両方に存在するカテゴリでエンコーダをfit
-    family_cat_le = LabelEncoder()
-    all_family_cats = pd.concat([X_train_add['FamilySize_Cat_Str'], X_test_add['FamilySize_Cat_Str']]).unique()
-    family_cat_le.fit(all_family_cats.astype(str)) # .astype(str) で NaN があってもエラーを回避
-    
-    X_train_add['FamilySize_Category'] = family_cat_le.transform(X_train_add['FamilySize_Cat_Str'].astype(str))
-    X_test_add['FamilySize_Category'] = family_cat_le.transform(X_test_add['FamilySize_Cat_Str'].astype(str))
-    
-    X_train_add.drop('FamilySize_Cat_Str', axis=1, inplace=True)
-    X_test_add.drop('FamilySize_Cat_Str', axis=1, inplace=True)
-    print("FamilySize categorized.")
-
-    # --- Ticket が数値のみかどうかの特徴量 --- 
-    # Ticket カラムは preprocessor.py で保持されている想定
-    if 'Ticket' in X_train_add.columns and 'Ticket' in X_test_add.columns:
-        X_train_add['Ticket_IsNumeric'] = X_train_add['Ticket'].apply(lambda x: 1 if x.isdigit() else 0)
-        X_test_add['Ticket_IsNumeric'] = X_test_add['Ticket'].apply(lambda x: 1 if x.isdigit() else 0)
-        print("Ticket_IsNumeric created.")
-        
-        # 元のTicketカラムは不要なので削除
-        X_train_add.drop('Ticket', axis=1, inplace=True)
-        X_test_add.drop('Ticket', axis=1, inplace=True)
-        print("Original Ticket column dropped.")
-    else:
-        print("Warning: Ticket column not found. Skipping Ticket_IsNumeric creation.")
-
-    print(f"Features after additional FE: {X_train_add.columns.tolist()}")
-    print("Additional feature engineering finished.")
-    return X_train_add, X_test_add
 
 def create_features(df: pd.DataFrame) -> pd.DataFrame:
     """特徴量を作成する関数"""

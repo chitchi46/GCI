@@ -7,7 +7,7 @@ import os
 from src.data_loader import load_train_data, load_test_data, check_data_integrity
 from src.eda import summarize_target_distribution, visualize_feature_vs_target # visualize_feature_vs_target をインポート
 from src.preprocessor import preprocess_data # preprocessor をインポート
-from src.feature_engineering import create_base_features, create_additional_features # feature_engineering から関数をインポート
+from src.feature_engineering import create_base_features # feature_engineering から関数をインポート
 from src.trainer import train_model # trainer.py の train_model を使用
 from src.utils import seed_everything, log_experiment_results, get_git_commit_hash, save_model_artifact, save_submission_file # utilsから必要な関数をインポート
 from src import config # config.py をインポート
@@ -70,13 +70,10 @@ def main():
             
     # 5. 特徴量エンジニアリング
     print("\n--- 5. 特徴量エンジニアリング ---")
-    X_train_base_fe, X_test_base_fe = create_base_features(X_processed, X_test_processed)
-    
-    # 追加の特徴量エンジニアリング
-    X_train_final, X_test_final = create_additional_features(X_train_base_fe, X_test_base_fe) # 新しい関数呼び出し
+    X_train_final, X_test_final = create_base_features(X_processed, X_test_processed)
     y_train_final = y_processed # yは変更なし
 
-    # 必要であれば、特徴量エンジニアリング後の Age_bin, Fare_bin, FamilySize_Category, Ticket_IsNumeric の分布を可視化するコードをここに追加
+    # 必要であれば、特徴量エンジニアリング後の Age_bin, Fare_bin の分布を可視化するコードをここに追加
     # print("\n--- EDA (特徴量エンジニアリング後) ---")
     # fe_train_vis_df = X_train_final.copy()
     # fe_train_vis_df[config.TARGET_COLUMN] = y_train_final.values
@@ -118,7 +115,7 @@ def main():
         timestamp=current_time_str, 
         exp_id=experiment_id, 
         cv_score=cv_score if 'cv_score' in locals() else -1, 
-        description="Model with binned Age/Fare, FamilySize_Category, Ticket_IsNumeric.", # 説明を更新
+        description="Model with binned Age and Fare features.", # 説明を更新
         git_commit_hash=git_hash
     )
 
