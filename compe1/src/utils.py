@@ -5,6 +5,32 @@ import joblib
 import mlflow
 import mlflow.lightgbm # save_model_artifact で lightgbm モデルをlogするため
 from src import config # config.py から定数をインポート
+import random
+import numpy as np
+import time
+import subprocess
+
+RESULTS_DIR = "../results"
+LOG_FILE_PATH = os.path.join(RESULTS_DIR, "exp_log.csv")
+
+def seed_everything(seed: int = 42):
+    """乱数シードを固定する関数"""
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
+def get_git_commit_hash() -> str:
+    """現在のGitコミットハッシュを取得する関数"""
+    try:
+        commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
+    except:
+        commit_hash = "N/A"
+    return commit_hash
+
+def log_experiment(experiment_id: str, cv_score: float, description: str):
+    """実験結果をCSVファイルに記録する関数"""
+    # TODO: 実装
+    pass
 
 def save_submission_file(test_df, test_preds, exp_id):
     """

@@ -1,133 +1,99 @@
-# -*- coding: utf-8 -*-
-import os
-import warnings
-import argparse
-import datetime
+# メイン処理を実行するスクリプト
 import pandas as pd
-import numpy as np
-import subprocess
-from sklearn.model_selection import StratifiedKFold
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score
-import lightgbm as lgb
-import mlflow
-import mlflow.lightgbm
-import joblib
+import time
 
-# src.configから定数をインポート
-from src import config # もし src が PYTHONPATH に含まれていない場合、相対インポートが必要になることがあります。
-                      # Colabで compe1 をカレントにした場合、 from src import config で動作するはず。
-from src.data_loader import load_data # load_data をインポート
-from src.preprocessor import preprocess_data # preprocess_data をインポート
-from src.trainer import train_model # train_model をインポート
-from src.utils import save_submission_file, save_model_artifact, log_experiment_results # utilsからインポート
+from src.data_loader import load_train_data, load_test_data, check_data_integrity
+from src.eda import summarize_target_distribution # (必要に応じて追加)
+from src.feature_engineering import create_features, select_features
+from src.model import train_lgbm_cv, save_model
+from src.tuning import run_optuna_lgbm # (必要に応じて追加)
+# from src.ensemble import average_predictions # (必要に応じて追加)
+from src.submission import create_submission_file
+from src.utils import seed_everything, log_experiment, get_git_commit_hash
 
-# Matplotlib / Seaborn の設定 (オプション)
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# plt.style.use('ggplot')
-# warnings.filterwarnings('ignore') # 警告を非表示にする場合
+# --- 定数 --- (config.py に移すことも検討)
+TRAIN_DATA_PATH = "data/train.csv"
+TEST_DATA_PATH = "data/test.csv"
+TARGET_COLUMN = "Perished"
+EXPERIMENT_ID_PREFIX = "exp"
+RANDOM_STATE = 42
+N_SPLITS_CV = 5
+N_TRIALS_OPTUNA = 100 # ユーザー指定は <=100
 
-# --- 定数定義 --- (config.py に移動したため削除)
-# TRAIN_DATA_PATH = "data/train.csv"
-# TEST_DATA_PATH = "data/test.csv"
-# SAMPLE_SUBMISSION_PATH = "data/sample_submission.csv"
-# OUTPUT_DIR = "results/"
-# MODEL_DIR = "models/"
+def main():
+    """メイン処理"""
+    start_time = time.time()
+    seed_everything(RANDOM_STATE)
+    experiment_id = f"{EXPERIMENT_ID_PREFIX}_{time.strftime('%Y%m%d%H%M%S')}"
+    print(f"実験ID: {experiment_id} を開始します。")
 
-# カラム名
-# TARGET_COLUMN = "Perished" # 目的変数 (README.ipynb より)
-# ID_COLUMN = "PassengerId"   # 提出ファイルのIDカラム
+    # 1. データ読み込みと整合性チェック
+    print("\n--- 1. データ読み込みと整合性チェック ---")
+    train_df = load_train_data(TRAIN_DATA_PATH)
+    test_df = load_test_data(TEST_DATA_PATH)
+    train_df = check_data_integrity(train_df, "訓練データ")
+    test_df = check_data_integrity(test_df, "テストデータ")
 
-# モデルパラメータ (例)
-# LGB_PARAMS = {
-#     'objective': 'binary',
-#     'metric': 'binary_logloss', # README.ipynb では Accuracy が評価指標だが、LightGBMの学習ではloglossが一般的
-#     'boosting_type': 'gbdt',
-#     'n_estimators': 10000,
-#     'learning_rate': 0.05,
-#     'num_leaves': 31,
-#     'max_depth': -1,
-#     'seed': 42,
-#     'n_jobs': -1,
-#     'verbose': -1,
-#     'colsample_bytree': 0.8,
-#     'subsample': 0.8,
-#     'reg_alpha': 0.1,
-#     'reg_lambda': 0.1,
-# }
-# N_SPLITS = 5 # CVの分割数
-# RANDOM_SEED = 42
+    # 2. EDA (必要に応じて実行、またはNotebookで実施)
+    print("\n--- 2. EDA (スキップ) ---")
+    # summarize_target_distribution(train_df, TARGET_COLUMN) # TODO: 実装後にコメント解除
 
-# --- 関数定義 --- (utils.py に移動したため削除)
-# def save_submission_file(test_df, test_preds, output_dir, exp_id):
-#    ...
-# def save_model_artifact(models, model_dir, exp_id, fold_number=None):
-#    ...
-# def log_experiment_results(exp_log_path, timestamp, exp_id, cv_score, description, git_commit_hash="N/A"):
-#    ...
+    # 3. 特徴量エンジニアリング
+    print("\n--- 3. 特徴量エンジニアリング ---")
+    # train_feat_df = create_features(train_df.copy()) # TODO: 実装後にコメント解除
+    # test_feat_df = create_features(test_df.copy())   # TODO: 実装後にコメント解除
+    # selected_features = select_features(train_feat_df, TARGET_COLUMN) # TODO: 実装後にコメント解除
+    # X_train = train_feat_df[selected_features]
+    # y_train = train_df[TARGET_COLUMN]
+    # X_test = test_feat_df[selected_features]
+    # test_ids = test_df["PassengerId"] # 提出用にIDを保持
 
-def main(args):
-    """
-    メイン処理を実行する関数
-    """
-    mlflow.set_experiment(args.experiment_name)
+    # 4. ベースラインモデル学習 (LightGBM)
+    print("\n--- 4. ベースラインモデル学習 (LightGBM) ---")
+    lgbm_params = {
+        'objective': 'binary',
+        'metric': 'accuracy',
+        'random_state': RANDOM_STATE,
+        'n_estimators': 1000, # Optunaで調整
+        'learning_rate': 0.05, # Optunaで調整
+        'num_leaves': 31, # Optunaで調整
+        # その他Optunaで調整するパラメータ
+        'verbose': -1,
+        'n_jobs': -1,
+    }
+    #oof_preds, test_preds, cv_score, best_model = train_lgbm_cv(X_train, y_train, params=lgbm_params, n_splits=N_SPLITS_CV) # TODO: 実装後にコメント解除
+    # print(f"ベースラインモデル (LightGBM) CV Accuracy: {cv_score:.4f}")
+    # save_model(best_model, f"baseline_lgbm_{experiment_id}.pkl")
 
-    with mlflow.start_run(run_name=args.run_name) as run:
-        run_id = run.info.run_id
-        print(f"MLflow Run ID: {run_id}")
-        print(f"Experiment Name: {args.experiment_name}, Run Name: {args.run_name}")
-        mlflow.log_param("random_seed", config.RANDOM_SEED)
-        mlflow.log_params(config.LGB_PARAMS)
+    # 5. Optunaによるチューニング (省略可能、または別スクリプト)
+    print("\n--- 5. Optunaによるチューニング (スキップ) ---")
+    # study = run_optuna_lgbm(X_train, y_train, n_trials=N_TRIALS_OPTUNA, n_splits=N_SPLITS_CV)
+    # print(f"Optuna Best CV Score: {study.best_value:.4f}")
+    # print(f"Optuna Best Params: {study.best_params}")
+    # tuned_lgbm_params = {**lgbm_params, **study.best_params}
+    # oof_preds_tuned, test_preds_tuned, cv_score_tuned, best_model_tuned = train_lgbm_cv(X_train, y_train, params=tuned_lgbm_params, n_splits=N_SPLITS_CV)
+    # print(f"チューニング済みLightGBM CV Accuracy: {cv_score_tuned:.4f}")
+    # save_model(best_model_tuned, f"tuned_lgbm_{experiment_id}.pkl")
 
-        train_df, test_df = load_data()
-        mlflow.log_param("train_data_shape", str(train_df.shape))
-        mlflow.log_param("test_data_shape", str(test_df.shape))
+    # 6. アンサンブル (省略可能)
+    print("\n--- 6. アンサンブル (スキップ) ---")
 
-        X_train, y_train, X_test = preprocess_data(train_df, test_df.copy())
-        
-        mlflow.lightgbm.autolog()
+    # 7. 提出ファイル作成
+    print("\n--- 7. 提出ファイル作成 ---")
+    # final_predictions = test_preds_tuned # チューニング後モデルの予測を使用する場合
+    # create_submission_file(test_df.copy(), final_predictions, experiment_id, target_col=TARGET_COLUMN) # TODO: 実装後にコメント解除
 
-        trained_models, oof_predictions, test_predictions, cv_score = train_model(
-            X_train, y_train, X_test, config.LGB_PARAMS, config.N_SPLITS, config.RANDOM_SEED
-        )
-        mlflow.log_metric("mean_cv_accuracy", cv_score)
+    # 8. 結果のロギング
+    print("\n--- 8. 結果のロギング ---")
+    # description = "ベースライン LightGBM モデル"
+    # log_experiment(experiment_id, cv_score, description) # TODO: 実装後にコメント解除
+    # if 'cv_score_tuned' in locals():
+    #     description_tuned = "Optuna チューニング済み LightGBM モデル"
+    #     log_experiment(f"{experiment_id}_tuned", cv_score_tuned, description_tuned)
 
-        # save_model_artifact と save_submission_file の引数を config を使わない形に変更
-        save_model_artifact(trained_models, exp_id=args.run_name, fold_number=None)
-        submission_file_path = save_submission_file(test_df, test_predictions, exp_id=args.run_name)
-
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        try:
-            git_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
-        except Exception as e:
-            print(f"Could not get git hash: {e}")
-            git_hash = "N/A"
-        
-        # log_experiment_results の引数を config を使わない形に変更
-        log_experiment_results(
-            timestamp,
-            args.run_name,
-            cv_score,
-            f"Baseline LightGBM with {config.N_SPLITS}-fold CV. Features: {X_train.columns.tolist()}",
-            git_hash
-        )
-
-        print(f"**BEST_CV (Accuracy):** {cv_score:.4f} ▲ from {args.run_name}")
-        mlflow.log_metric("final_cv_accuracy", cv_score)
+    end_time = time.time()
+    print(f"\n実験ID: {experiment_id} が完了しました。処理時間: {end_time - start_time:.2f} 秒")
+    # print(f"最良CVスコア: {max(cv_score, cv_score_tuned if 'cv_score_tuned' in locals() else 0):.4f}") # TODO: 修正
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Kaggle competition pipeline.")
-    parser.add_argument("--experiment_name", type=str, default=config.DEFAULT_EXPERIMENT_NAME, help="Name of the MLflow experiment.")
-    parser.add_argument("--run_name", type=str, default=f"run_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}", help="Name of the MLflow run.")
-    args = parser.parse_args()
-
-    # 警告を一度だけ表示する設定 (オプション)
-    # warnings.simplefilter('once', UserWarning)
-
-    # スクリプトのあるディレクトリを基準にパスを解決 (compe1 ディレクトリ直下で実行される想定)
-    # os.chdir(os.path.dirname(os.path.abspath(__file__))) # main.py が compe1 の中にある場合
-
-    main(args)
-
-    print("Pipeline finished.") 
+    main()

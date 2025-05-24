@@ -2,9 +2,11 @@ pandas==2.0.0
 scikit-learn==1.5.0
 xgboost==2.0.0
 lightgbm==4.3.0
-mlflow
-optuna
-numpy==1.24.4
+optuna==3.5.0
+# Jupyter notebook や EDA に必要なライブラリ
+jupyter
 matplotlib
 seaborn
-joblib 
+# その他、一般的なライブラリ
+numpy
+joblib

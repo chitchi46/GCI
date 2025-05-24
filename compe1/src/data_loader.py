@@ -41,4 +41,42 @@ def load_data(): # 引数を削除し、configからパスを取得
     verify_data_integrity(train_df, "train_df")
     verify_data_integrity(test_df, "test_df")
 
-    return train_df, test_df 
+    return train_df, test_df
+
+def load_train_data(file_path: str) -> pd.DataFrame:
+    """訓練データを読み込む関数"""
+    df = pd.read_csv(file_path)
+    print(f"{file_path} を読み込みました。Shape: {df.shape}")
+    return df
+
+def load_test_data(file_path: str) -> pd.DataFrame:
+    """テストデータを読み込む関数"""
+    df = pd.read_csv(file_path)
+    print(f"{file_path} を読み込みました。Shape: {df.shape}")
+    return df
+
+def check_data_integrity(df: pd.DataFrame, df_name: str):
+    """データの整合性をチェックする関数 (null, dtype, duplicates)"""
+    print(f"\n--- {df_name} の整合性チェック ---")
+    print("\n[基本情報]")
+    print(f"Shape: {df.shape}")
+
+    print("\n[欠損値の割合 (%)]")
+    null_counts = df.isnull().sum()
+    null_percentages = (null_counts / len(df)) * 100
+    null_info = pd.DataFrame({'欠損数': null_counts, '割合 (%)': null_percentages})
+    print(null_info[null_info['欠損数'] > 0].sort_values(by='割合 (%)', ascending=False))
+
+    print("\n[データ型]")
+    print(df.dtypes)
+
+    print("\n[重複行の数]")
+    duplicate_rows = df.duplicated().sum()
+    print(f"{duplicate_rows} 行")
+
+    if duplicate_rows > 0:
+        print("重複行を削除します。")
+        df.drop_duplicates(inplace=True)
+        print(f"削除後のShape: {df.shape}")
+    print(f"--- {df_name} の整合性チェック完了 ---")
+    return df # 重複削除後のDataFrameを返す場合があるため 
