@@ -111,7 +111,7 @@ def preprocess_data(train_df: pd.DataFrame, test_df: pd.DataFrame) -> tuple[pd.D
     combined_df['Deck'] = final_deck_le.fit_transform(combined_df['Deck'])
 
     # 8. 不要カラムの削除
-    columns_to_drop = ['Name', 'Ticket', 'Cabin', 'SibSp', 'Parch']
+    columns_to_drop = ['Name', 'Cabin', 'SibSp', 'Parch']
     combined_df.drop(columns_to_drop, axis=1, inplace=True)
     
     # 9. データをtrainとtestに再分割
