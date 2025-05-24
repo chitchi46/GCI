@@ -38,7 +38,7 @@ def main():
     # 2. EDA
     print("\n--- 2. EDA ---")
     summarize_target_distribution(train_df, TARGET_COLUMN)
-    plt.show() # summarize_target_distribution で準備されたグラフを表示
+    # plt.show() # summarize_target_distribution で準備されたグラフを表示
 
     # 3. 特徴量エンジニアリング
     print("\n--- 3. 特徴量エンジニアリング ---")

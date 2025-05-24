@@ -60,6 +60,7 @@ def summarize_target_distribution(df: pd.DataFrame, target_col: str):
         # ここでは一旦 main 側で plt.show() を呼ぶ想定で plt.show() は書かない
         # ただし、Colabで直接この関数をテストする場合は plt.show() が必要
         print(f"'{target_col}' の分布グラフの準備ができました。main.py側で表示してください。")
+        plt.show()
     except Exception as e:
         print(f"グラフの描画中にエラーが発生しました: {e}")
         print("matplotlib や seaborn が正しくインストールされているか、GUI環境か確認してください。")
