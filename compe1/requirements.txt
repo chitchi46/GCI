@@ -3,6 +3,7 @@ scikit-learn==1.5.0
 xgboost==2.0.0
 lightgbm==4.3.0
 optuna==3.5.0
+mlflow
 # Jupyter notebook や EDA に必要なライブラリ
 jupyter
 matplotlib
