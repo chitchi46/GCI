@@ -8,5 +8,5 @@ jupyter
 matplotlib
 seaborn
 # その他、一般的なライブラリ
-numpy
+numpy==1.24.4
 joblib
