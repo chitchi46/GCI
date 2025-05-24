@@ -32,38 +32,62 @@ def create_base_features(X_train: pd.DataFrame, X_test: pd.DataFrame) -> tuple[p
     print("Age binned.")
 
     # --- Fare のビン化 (対数変換後のFareに対して) ---
-    # 訓練データに基づいてビンの境界を決定
-    # duplicates='raise' (デフォルト) にして、境界値が一意でない場合にエラーを出すようにし、ビンの数を調整するアプローチも検討できる
     try:
-        X_train_fe['Fare_bin'], fare_bins_edges = pd.qcut(X_train_fe['Fare'], q=4, retbins=True, labels=False, duplicates='drop')
+        # 訓練データに基づいてビンの境界を決定 (ラベルはまだ付けない)
+        _, fare_bins_edges = pd.qcut(X_train_fe['Fare'], q=4, retbins=True, labels=False, duplicates='drop')
     except ValueError as e:
-        print(f"Warning: Could not create 4 quantiles for Fare due to duplicate edges: {e}. Trying with fewer bins or different strategy.")
-        # 代替戦略: 例えば3分位にするか、固定の境界値を設定する
-        # ここでは簡略化のため、エラー時は処理をスキップせずに続行するが、実際はより堅牢な処理が必要
-        # もし_fare_bins_edgesが未定義で終わるのを避けるため、デフォルト値を設定
-        fare_bins_edges = [-np.inf, X_train_fe['Fare'].quantile(0.25), X_train_fe['Fare'].median(), X_train_fe['Fare'].quantile(0.75), np.inf]
-
-    fare_labels = list(range(len(fare_bins_edges) - 1))
+        print(f"Warning: Could not create 4 quantiles for Fare due to duplicate edges: {e}. Using default quantile-based bins.")
+        # デフォルトの分位点を使用するフォールバック
+        quantiles = [0, 0.25, 0.5, 0.75, 1.0]
+        fare_bins_edges = X_train_fe['Fare'].quantile(quantiles).to_numpy()
+        # 重複する境界値を削除 (ユニーク性を保証)
+        fare_bins_edges = np.unique(fare_bins_edges)
+        if len(fare_bins_edges) < 2: # ビンが作れない場合
+            print("Error: Not enough unique bin edges for Fare. Skipping Fare binning.")
+            # Fare_bin を作成せずに元のFareを維持するか、エラーを出すか。ここでは元のFareを維持する想定はしていない。
+            # 安全のため、ここでは処理を中断せずに進めるが、実際のプロジェクトではエラーハンドリングを検討。
+            # 代わりに、非常に単純なビン１つにするなど。
+            fare_bins_edges = [-np.inf, np.inf] # 単一のビン
 
     # `fare_bins_edges` の最初と最後を調整して、範囲外の値もカバーできるようにする
-    # pd.qcut(duplicates='drop') を使った場合、fare_bins_edges の数は q+1 より少なくなることがあるので、ラベル数もそれに合わせる必要がある。
-    # retbins=Trueで得られた境界値を使うので、 labels の数は len(fare_bins_edges) - 1 となる。
-    if fare_bins_edges[0] != -np.inf:
+    if not np.isneginf(fare_bins_edges[0]): # -np.inf でない場合に追加
         fare_bins_edges = np.insert(fare_bins_edges, 0, -np.inf)
-    if fare_bins_edges[-1] != np.inf:
+    if not np.isposinf(fare_bins_edges[-1]): # np.inf でない場合に追加
         fare_bins_edges = np.append(fare_bins_edges, np.inf)
     
-    # X_train_fe['Fare_bin'] は既にqcutで作成済みなので、X_test_feのみpd.cutで作成
-    X_test_fe['Fare_bin'] = pd.cut(X_test_fe['Fare'], bins=fare_bins_edges, labels=fare_labels, right=False, include_lowest=True)
+    # 重複した境界値を削除（-inf, inf追加後に発生する可能性もあるため）
+    fare_bins_edges = np.unique(fare_bins_edges)
 
-    # Fareの欠損値はpreprocessorで補完済み想定。
-    print("Fare binned.")
+    # fare_bins_edges が確定した後に fare_labels を定義する
+    # ビン数が1つしかない場合(例: [-np.inf, np.inf])、ラベルは0のみ
+    fare_labels = list(range(max(1, len(fare_bins_edges) - 1))) 
+    if len(fare_bins_edges) <=1:
+        print("Warning: Fare binning resulted in too few bins. Check Fare distribution or qcut parameters.")
+        # この場合、pd.cutはエラーになるので、単一の値を割り当てるなど、別の対応が必要
+        # 例: X_train_fe['Fare_bin'] = 0, X_test_fe['Fare_bin'] = 0
+        # しかし、その場合はモデルにとって意味のある特徴量にならない可能性が高い。
+        # ここでは、後続の pd.cut でエラーが出るのに任せる (より堅牢なエラー処理が必要な場面)
+
+    if len(fare_labels) == 0 and len(fare_bins_edges) == 2: # [-inf, inf]のような場合、ラベルは一つ(0)であるべき
+        fare_labels = [0]
+    elif len(fare_labels) != len(fare_bins_edges) -1:
+        print(f"Error: Mismatch between number of fare labels ({len(fare_labels)}) and bins ({len(fare_bins_edges)-1}). Skipping Fare_bin creation for safety.")
+        # 安全のため、Fare_binカラムを作成しない、または元のFareを維持するなどの措置
+    else:
+        X_train_fe['Fare_bin'] = pd.cut(X_train_fe['Fare'], bins=fare_bins_edges, labels=fare_labels, right=False, include_lowest=True)
+        X_test_fe['Fare_bin'] = pd.cut(X_test_fe['Fare'], bins=fare_bins_edges, labels=fare_labels, right=False, include_lowest=True)
+        print("Fare binned.")
 
     # --- 不要になった元のカラムの削除 ---
     columns_to_drop_fe = ['Age', 'Fare']
-    X_train_fe.drop(columns_to_drop_fe, axis=1, inplace=True)
-    X_test_fe.drop(columns_to_drop_fe, axis=1, inplace=True)
-    print(f"Dropped original columns: {columns_to_drop_fe}")
+    # dropする前に、Fare_binが作成されたか確認 (エラーでスキップされた場合を考慮)
+    if 'Fare_bin' not in X_train_fe.columns:
+        print("Fare_bin was not created, original Fare column will be kept if it exists.")
+        if 'Fare' in columns_to_drop_fe: columns_to_drop_fe.remove('Fare')
+            
+    X_train_fe.drop(columns_to_drop_fe, axis=1, inplace=True, errors='ignore') # errors='ignore'で存在しないカラムを無視
+    X_test_fe.drop(columns_to_drop_fe, axis=1, inplace=True, errors='ignore')
+    print(f"Dropped specified original columns: {columns_to_drop_fe}")
 
     print(f"Features after base FE: {X_train_fe.columns.tolist()}")
     print("Feature engineering (base features) finished.")
