@@ -3,6 +3,7 @@ import pandas as pd
 import time
 # import matplotlib.pyplot as plt # visualize_feature_vs_target でファイル保存するため、メインでは不要
 import os
+import argparse # コマンドライン引数のため
 
 from src.data_loader import load_train_data, load_test_data, check_data_integrity
 from src.eda import summarize_target_distribution, visualize_feature_vs_target # visualize_feature_vs_target をインポート
@@ -11,6 +12,7 @@ from src.feature_engineering import create_base_features # feature_engineering �
 from src.trainer import train_model # trainer.py の train_model を使用
 from src.utils import seed_everything, log_experiment_results, get_git_commit_hash, save_model_artifact, save_submission_file # utilsから必要な関数をインポート
 from src import config # config.py をインポート
+from src.tuning import run_tuning # tuning.py から run_tuning をインポート
 
 # --- 定数 --- (config.py に移すことも検討)
 # config.pyからも読めるようにするなら、そちらに集約し、ここでは import src.config as cfg のようにする
@@ -25,6 +27,10 @@ EDA_PLOTS_DIR = "results/eda_plots" # EDAグラフの保存先ディレクトリ
 
 def main():
     """メイン処理"""
+    parser = argparse.ArgumentParser(description="Run the GCI Compe1 pipeline.")
+    parser.add_argument("--tune", action="store_true", help="Run hyperparameter tuning with Optuna instead of training.")
+    args = parser.parse_args()
+
     start_time = time.time()
     current_time_str = time.strftime("%Y%m%d%H%M%S")
     experiment_id = f"{config.EXPERIMENT_ID_PREFIX}_{current_time_str}"
@@ -73,28 +79,29 @@ def main():
     X_train_final, X_test_final = create_base_features(X_processed, X_test_processed)
     y_train_final = y_processed # yは変更なし
 
-    # 必要であれば、特徴量エンジニアリング後の Age_bin, Fare_bin の分布を可視化するコードをここに追加
-    # print("\n--- EDA (特徴量エンジニアリング後) ---")
-    # fe_train_vis_df = X_train_final.copy()
-    # fe_train_vis_df[config.TARGET_COLUMN] = y_train_final.values
-    # features_to_visualize_after_fe = ['Age_bin', 'Fare_bin'] 
-    # for feature in features_to_visualize_after_fe:
-    #     if feature in fe_train_vis_df.columns:
-    #         visualize_feature_vs_target(fe_train_vis_df, feature_col=feature, target_col=config.TARGET_COLUMN, output_dir=EDA_PLOTS_DIR, filename_prefix="fe_")
-    #     else:
-    #         print(f"Warning: 特徴量 '{feature}' は特徴量エンジニアリング後の訓練データに存在しません。スキップします。")
-
-    # 6. ベースラインモデル学習 (LightGBM using trainer.py)
-    print("\n--- 6. ベースラインモデル学習 ---")
-    cv_models, oof_preds, test_preds, cv_score = train_model(
-        X_train_final, 
-        y_train_final, 
-        X_test_final, 
-        params=config.LGB_PARAMS, 
-        n_splits=config.N_SPLITS_CV, 
-        random_seed=config.RANDOM_STATE
-    )
-    print(f"ベースラインモデル CV Accuracy: {cv_score:.4f}")
+    if args.tune:
+        print("\n--- Hyperparameter Tuning Mode ---")
+        best_params = run_tuning(X_train_final, y_train_final) # X_train_final と y_train_final を渡す
+        print("\n--- Tuning finished. Best parameters found: ---")
+        print(best_params)
+        # チューニング後はここで終了。必要であれば best_params を使って通常学習を続ける処理を追加。
+        # 例えば、config.LGB_PARAMS を上書きするなど。
+        # config.LGB_PARAMS.update(best_params) # このようにして更新できる
+        # print("LGB_PARAMS in config has been updated with the best parameters.")
+        # print("Please re-run without --tune to train with these parameters.")
+    else:
+        print("\n--- Training Mode ---")
+        # 6. ベースラインモデル学習 (LightGBM using trainer.py)
+        print("\n--- 6. ベースラインモデル学習 ---")
+        cv_models, oof_preds, test_preds, cv_score = train_model(
+            X_train_final, 
+            y_train_final, 
+            X_test_final, 
+            params=config.LGB_PARAMS, # configからLGB_PARAMSを読む
+            n_splits=config.N_SPLITS_CV, 
+            random_seed=config.RANDOM_STATE
+        )
+        print(f"ベースラインモデル CV Accuracy: {cv_score:.4f}")
 
     # 7. モデル保存
     print("\n--- 7. モデル保存 ---")

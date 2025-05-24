@@ -21,25 +21,27 @@ EXPERIMENT_ID_PREFIX = "exp" # 追加
 # モデルパラメータ (例)
 LGB_PARAMS = {
     'objective': 'binary',
-    'metric': ['binary_logloss', 'accuracy'],
+    'metric': ['binary_logloss', 'accuracy'], # チューニング時には accuracy のみに変更も検討
     'boosting_type': 'gbdt',
-    'n_estimators': 250,
-    'learning_rate': 0.05,
-    'num_leaves': 25,
-    'max_depth': 7,
-    'min_child_samples': 30,
-    'seed': 42, # LGBMパラメータ内のseed
-    'n_jobs': -1,
-    'verbose': -1,
-    'colsample_bytree': 0.7,
-    'subsample': 0.7,
-    'reg_alpha': 0.2,
-    'reg_lambda': 0.2,
+    'n_estimators': 250,        # チューニング対象
+    'learning_rate': 0.05,      # チューニング対象
+    'num_leaves': 25,           # チューニング対象
+    'max_depth': 7,             # チューニング対象
+    'min_child_samples': 30,    # チューニング対象
+    'seed': 42,                 # 固定
+    'n_jobs': -1,               # 固定
+    'verbose': -1,              # 固定
+    'colsample_bytree': 0.7,    # チューニング対象
+    'subsample': 0.7,           # チューニング対象
+    'reg_alpha': 0.2,           # チューニング対象 (L1)
+    'reg_lambda': 0.2,          # チューニング対象 (L2)
 }
 N_SPLITS = 5 # CVの分割数
 N_SPLITS_CV = 5 # CVの分割数 (main.pyでの参照用として追加、N_SPLITSと値を合わせる)
 RANDOM_SEED = 42
 RANDOM_STATE = 42 # 実験全体のランダムシード (main.pyでの参照用として追加、RANDOM_SEEDと値を合わせる)
+
+N_TRIALS_OPTUNA = 50 # Optunaの試行回数
 
 # MLflow 設定
 DEFAULT_EXPERIMENT_NAME = "Titanic_Survival_Prediction" 
