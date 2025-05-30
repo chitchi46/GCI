@@ -2,12 +2,14 @@
 import lightgbm as lgb
 import optuna
 import pandas as pd
+from pathlib import Path
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 from compe1.preprocessing import TitanicPreprocessor # Updated import
 
-DATA_DIR = "data"  # Expected to be relative to the execution directory, e.g., compe1/data
+THIS_DIR = Path(__file__).resolve().parent
+DATA_DIR = THIS_DIR / "data"          # → compe1/data
 N_SPLITS = 5
 SEED     = 42
 
