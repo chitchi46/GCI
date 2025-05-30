@@ -66,13 +66,15 @@ def main():
     study.optimize(lambda t: objective(t, X_df, y),
                    n_trials=50, show_progress_bar=True)
 
-    best = study.best_params.copy() # Use .copy() to avoid modifying the original
-    best.update({
-        "objective": "binary", "metric": "binary_error",
-        "random_state": SEED, "verbose": -1, "n_jobs": -1,
-        # Add n_estimators here as it's part of the model's parameters, not just Optuna's
-        "n_estimators": params.get("n_estimators", 800) # Ensure n_estimators is included
-    })
+    best = {
+        **study.best_params,                       # Optuna が探索した値
+        "objective": "binary",
+        "metric": "binary_error",
+        "random_state": SEED,
+        "verbose": -1,
+        "n_jobs": -1,
+        "n_estimators": 800                      # 固定値 800
+    }
     print("Best params:", best)
 
     # ------- Final fit on full data -----

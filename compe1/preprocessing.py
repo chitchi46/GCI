@@ -69,9 +69,9 @@ class TitanicPreprocessor(BaseEstimator, TransformerMixin):
         df = X.copy()
 
         # 欠損補完
-        df["Age"].fillna(self.age_mean_, inplace=True)
-        df["Fare"].fillna(self.fare_mean_, inplace=True)
-        df["Embarked"].fillna("S", inplace=True)
+        df.loc[:, "Age"]      = df["Age"].fillna(self.age_mean_)
+        df.loc[:, "Fare"]     = df["Fare"].fillna(self.fare_mean_)
+        df.loc[:, "Embarked"] = df["Embarked"].fillna("S")
 
         # Feature Engineering
         df = self._feature(df)
