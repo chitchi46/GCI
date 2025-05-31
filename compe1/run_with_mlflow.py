@@ -8,7 +8,7 @@ from compe1.utils.mlflow_helper import (
     start_mlflow_server_and_ngrok_tunnel as start_mlflow_ui,
     stop_mlflow_server_and_ngrok_tunnel as stop_mlflow_ui,
 )
-import mlflow, mlflow.lightgbm
+import mlflow # 汎用 autolog を使うだけなら lightgbm サブモジュールは不要
 # import atexit # atexit は mlflow_helper 内部で処理されるため、ここでは不要
 
 def parse_args():
@@ -21,9 +21,9 @@ def parse_args():
 
 # ── 2. autolog ＆ 学習 ───────────────────────────
 mlflow.set_experiment("Titanic_LGBM_Optuna")
-mlflow.lightgbm.autolog(
-    disable_callbacks=["log_feature_importance_plot"],
-    log_models=True
+mlflow.autolog( # ← こちらは disable_callbacks を受け付ける
+    log_models=True,
+    disable_callbacks=["log_feature_importance_plot"]
 )
 
 if __name__ == "__main__":
