@@ -26,7 +26,8 @@ def objective(trial, X_df, y):
         "lambda_l2":     trial.suggest_float("l2", 0.0, 5.0),
         "n_estimators":  800,
         "objective":     "binary",
-        "metric":        "binary_error",
+        # LightGBM 側の metric は使わず、後で Accuracy を自前評価
+        "metric":        "None",
         "random_state":  SEED,
         "verbose":       -1,
         "n_jobs":        -1,
@@ -52,7 +53,7 @@ def objective(trial, X_df, y):
     mean_acc = sum(accs)/len(accs)
     trial.set_user_attr("cv_accuracy", mean_acc)      # ← 後で取り出せる
     print(f"  ▶︎ CV Accuracy = {mean_acc:.4f}")
-    return 1 - mean_acc               # minimize binary_error
+    return 1 - mean_acc               # 最小化する値＝ 1-Accuracy
 
 def main():
     # --- Load data ---
@@ -75,7 +76,7 @@ def main():
     best = {
         **study.best_params,                       # Optuna が探索した値
         "objective": "binary",
-        "metric": "binary_error",
+        "metric": "None",
         "random_state": SEED,
         "verbose": -1,
         "n_jobs": -1,
