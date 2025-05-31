@@ -45,9 +45,14 @@ def objective(trial, X_df, y):
 
         pipe.fit(X_tr, y_tr)
         preds = pipe.predict(X_val)
-        accs.append(accuracy_score(y_val, preds))
+        fold_acc = accuracy_score(y_val, preds)
+        accs.append(fold_acc)
 
-    return 1 - sum(accs)/len(accs)   # minimize
+    # Optuna に渡す値
+    mean_acc = sum(accs)/len(accs)
+    trial.set_user_attr("cv_accuracy", mean_acc)      # ← 後で取り出せる
+    print(f"  ▶︎ CV Accuracy = {mean_acc:.4f}")
+    return 1 - mean_acc               # minimize binary_error
 
 def main():
     # --- Load data ---
@@ -63,8 +68,9 @@ def main():
     print("Optuna search (leak-free CV)…")
     study = optuna.create_study(direction="minimize",
                                 sampler=optuna.samplers.TPESampler(seed=SEED))
-    study.optimize(lambda t: objective(t, X_df, y),
-                   n_trials=50, show_progress_bar=True)
+    import warnings, lightgbm as lgbm_warn
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    study.optimize(lambda t: objective(t, X_df, y), n_trials=50, show_progress_bar=True)
 
     best = {
         **study.best_params,                       # Optuna が探索した値
