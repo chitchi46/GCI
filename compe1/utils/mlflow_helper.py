@@ -6,7 +6,7 @@ Usage:
 import os, time, subprocess, signal, psutil, warnings
 from pathlib import Path
 
-from pyngrok import ngrok
+from pyngrok import ngrok, conf
 
 MLFLOW_PORT = 5000
 
@@ -30,7 +30,7 @@ def start_mlflow_ui() -> str:
     """Returns public URL"""
     warnings.filterwarnings("ignore")
     tok = _get_token()
-    ngrok.set_auth_token(tok)
+    conf.set_default(conf.PyngrokConfig(auth_token=tok))
 
     # -- kill existing mlflow on same port --
     for p in psutil.process_iter(["pid","cmdline"]):
@@ -38,10 +38,9 @@ def start_mlflow_ui() -> str:
             os.kill(p.info["pid"], signal.SIGTERM)
 
     # -- mlflow UI subprocess --
-    subprocess.Popen(
-        ["mlflow","ui","--backend-store-uri","file:./mlruns",
-         "--port", str(MLFLOW_PORT)],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    mlflow_proc = subprocess.Popen(
+        ["mlflow","ui","--backend-store-uri","file:./mlruns","--host","0.0.0.0","--port", str(MLFLOW_PORT)],
+        stdout=open("mlflow.out","w"), stderr=subprocess.STDOUT
     )
     time.sleep(3)
 
@@ -64,4 +63,55 @@ def stop_mlflow_ui():
                 os.kill(p.info["pid"], signal.SIGTERM)
             except Exception:
                 pass
-    print("🛑 MLflow & ngrok stopped") 
+    print("🛑 MLflow & ngrok stopped")
+
+# cell: install & helper 呼び出し
+!pip -q install mlflow==2.12.1 pyngrok==7.0.0
+
+import os, subprocess, textwrap, time
+from pyngrok import ngrok, conf
+
+#--- 環境変数で token を渡す (自PCの ~/.bashrc 等に export 済みなら自動)
+token = os.getenv("NGROK_AUTHTOKEN")
+if not token:
+    raise RuntimeError("環境変数 NGROK_AUTHTOKEN が無い（Colab の Session > 環境変数 で設定）")
+conf.set_default(conf.PyngrokConfig(auth_token=token))
+
+#--- mlflow ui をバックグラウンド起動 (stdout をファイルに逃がす)
+mlflow_proc = None
+public_url = None
+
+def start_mlflow_server_and_ngrok_tunnel():
+    global mlflow_proc, public_url
+    mlflow_proc = subprocess.Popen(
+        ["mlflow","ui","--backend-store-uri","file:./mlruns","--host","0.0.0.0","--port","5000"],
+        stdout=open("mlflow.out","w"), stderr=subprocess.STDOUT
+    )
+    time.sleep(3)                     # 少し待機
+
+    #--- ngrok tunnel
+    public_url = ngrok.connect(5000, "http").public_url
+    print("🚪  MLflow UI:", public_url)
+
+    #--- keep-alive  (出力が無いと Colab が idle kill する対策)
+    def keepalive():
+        while True:
+            print("…mlflow alive")
+            time.sleep(60)
+    import threading, atexit, signal
+    t = threading.Thread(target=keepalive, daemon=True); t.start()
+
+    def _cleanup(signum=None, frame=None):
+        try:
+            if public_url:
+                ngrok.disconnect(public_url)
+        finally:
+            if mlflow_proc:
+                mlflow_proc.terminate()
+        print("🛑 MLflow & ngrok stopped")
+    for s in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(s, _cleanup)
+    atexit.register(_cleanup)
+
+if __name__ == '__main__':
+    start_mlflow_server_and_ngrok_tunnel() 

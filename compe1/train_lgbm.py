@@ -5,6 +5,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 from compe1.preprocessing import TitanicPreprocessor # Updated import
+from compe1.utils.mlflow_helper import start_mlflow_server_and_ngrok_tunnel # Added import
 
 THIS_DIR = Path(__file__).resolve().parent
 DATA_DIR = THIS_DIR / "data"          # → compe1/data
@@ -54,6 +55,12 @@ def objective(trial, X_df, y):
     return 1 - mean_acc
 
 def main():
+    # ------ MLflow UI Start ------
+    start_mlflow_server_and_ngrok_tunnel()
+    # ユーザーが提示した以下の行は、現在のmlflow_helper.pyの実装と合わないためコメントアウトします
+    # mlflow_url, stop_hook = start_mlflow_ui()   # stop_hook() で明示停止
+    # print("MLflow @", mlflow_url)
+
     # ------ Quiet warnings ------
     warnings.filterwarnings("ignore", category=FutureWarning)
     warnings.filterwarnings("ignore", category=pd.errors.PerformanceWarning)
