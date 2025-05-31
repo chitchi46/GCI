@@ -5,7 +5,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.metrics import accuracy_score
 from compe1.preprocessing import TitanicPreprocessor # Updated import
-from compe1.utils.mlflow_helper import start_mlflow_ui
 from compe1.src.config import CV_PARAMS # 追加
 
 THIS_DIR = Path(__file__).resolve().parent
@@ -63,10 +62,6 @@ def objective(trial, X_df, y):
     return 1 - acc_score # 最小化問題なので 1 - accuracy
 
 def main():
-    # MLflow UI & ngrok を起動
-    mlflow_url, stop_mlflow_hook = start_mlflow_ui(port=5000)
-    print("MLflow UI:", mlflow_url)
-
     # MLflow Experiment を設定
     mlflow.set_experiment("Titanic_LGBM_Optuna")
 
@@ -130,13 +125,4 @@ def main():
     print("submission_lgbm.csv saved.")
 
 if __name__ == "__main__":
-    # This allows the script to be run from command line
-    # Example: python compe1/train_lgbm.py
-    # Ensure that 'data/train.csv' and 'data/test.csv' exist relative to the CWD,
-    # and preprocessing.py and feature_engineering.py are importable.
-    try:
-        main()
-    finally:
-        if 'stop_mlflow_hook' in locals() and callable(stop_mlflow_hook):
-            print("Stopping MLflow UI from train_lgbm.py's finally block...")
-            stop_mlflow_hook() # main()が正常/異常終了後も呼ばれるように 
+    main() # 直接 main を呼び出すように変更 (run_with_mlflow.py から実行される想定) 
