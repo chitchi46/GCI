@@ -1,11 +1,11 @@
 # GCI/compe1/train_lgbm.py
-import lightgbm as lgb, optuna, pandas as pd, warnings, sys
+import lightgbm as lgb, optuna, pandas as pd, warnings, sys, mlflow
 from pathlib import Path
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 from compe1.preprocessing import TitanicPreprocessor # Updated import
-from compe1.utils.mlflow_helper import start_mlflow_server_and_ngrok_tunnel # Added import
+from compe1.utils.mlflow_helper import start_mlflow_ui
 
 THIS_DIR = Path(__file__).resolve().parent
 DATA_DIR = THIS_DIR / "data"          # → compe1/data
@@ -55,11 +55,12 @@ def objective(trial, X_df, y):
     return 1 - mean_acc
 
 def main():
-    # ------ MLflow UI Start ------
-    start_mlflow_server_and_ngrok_tunnel()
-    # ユーザーが提示した以下の行は、現在のmlflow_helper.pyの実装と合わないためコメントアウトします
-    # mlflow_url, stop_hook = start_mlflow_ui()   # stop_hook() で明示停止
-    # print("MLflow @", mlflow_url)
+    # MLflow UI & ngrok を起動
+    mlflow_url, stop_mlflow_hook = start_mlflow_ui(port=5000)
+    print("MLflow UI:", mlflow_url)
+
+    # MLflow Experiment を設定
+    mlflow.set_experiment("Titanic_LGBM_Optuna")
 
     # ------ Quiet warnings ------
     warnings.filterwarnings("ignore", category=FutureWarning)
@@ -78,6 +79,7 @@ def main():
     print("Optuna search (leak-free CV)…")
     study = optuna.create_study(direction="minimize",
                                 sampler=optuna.samplers.TPESampler(seed=SEED))
+    # mlflow.lightgbm.autolog() は run_with_mlflow.py で設定されている想定
     study.optimize(lambda t: objective(t, X_df, y), n_trials=50, show_progress_bar=False)
 
     # ------ Summary ------
@@ -123,4 +125,9 @@ if __name__ == "__main__":
     # Example: python compe1/train_lgbm.py
     # Ensure that 'data/train.csv' and 'data/test.csv' exist relative to the CWD,
     # and preprocessing.py and feature_engineering.py are importable.
-    main() 
+    try:
+        main()
+    finally:
+        if 'stop_mlflow_hook' in locals() and callable(stop_mlflow_hook):
+            print("Stopping MLflow UI from train_lgbm.py's finally block...")
+            stop_mlflow_hook() # main()が正常/異常終了後も呼ばれるように 
