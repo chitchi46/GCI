@@ -5,8 +5,8 @@ Entry-point:  python -m compe1.run_with_mlflow
 """
 import argparse, time, os
 from compe1.utils.mlflow_helper import (
-    start_mlflow_server_and_ngrok_tunnel,
-    stop_mlflow_server_and_ngrok_tunnel,
+    start_mlflow_server_and_ngrok_tunnel as start_mlflow_ui,
+    stop_mlflow_server_and_ngrok_tunnel as stop_mlflow_ui,
 )
 import mlflow, mlflow.lightgbm
 # import atexit # atexit は mlflow_helper 内部で処理されるため、ここでは不要
@@ -35,7 +35,7 @@ mlflow.lightgbm.autolog(log_models=False)
 if __name__ == "__main__":
     args = parse_args()
 
-    ui_url, *_ = start_mlflow_server_and_ngrok_tunnel(
+    ui_url, *_ = start_mlflow_ui(
         port=5000,
         tracking_uri="file:./mlruns",
         auth_token=os.getenv("NGROK_AUTH_TOKEN")   # ここで環境変数参照
@@ -57,5 +57,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("Interrupted by user.")
     finally:
-        stop_mlflow_server_and_ngrok_tunnel()
+        stop_mlflow_ui()
         print("Cleaned up MLflow & ngrok.") 
