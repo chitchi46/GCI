@@ -1,7 +1,5 @@
 # GCI/compe1/train_lgbm.py
-import lightgbm as lgb
-import optuna
-import pandas as pd
+import lightgbm as lgb, optuna, pandas as pd, warnings, sys
 from pathlib import Path
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import StratifiedKFold
@@ -34,7 +32,7 @@ def objective(trial, X_df, y):
     }
 
     cv = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
-    accs = []
+    acc = []
     for train_idx, valid_idx in cv.split(X_df, y):
         X_tr, X_val = X_df.iloc[train_idx], X_df.iloc[valid_idx]
         y_tr, y_val = y[train_idx], y[valid_idx]
@@ -47,15 +45,19 @@ def objective(trial, X_df, y):
         pipe.fit(X_tr, y_tr)
         preds = pipe.predict(X_val)
         fold_acc = accuracy_score(y_val, preds)
-        accs.append(fold_acc)
+        acc.append(fold_acc)
 
     # Optuna に渡す値
-    mean_acc = sum(accs)/len(accs)
-    trial.set_user_attr("cv_accuracy", mean_acc)      # ← 後で取り出せる
-    print(f"  ▶︎ CV Accuracy = {mean_acc:.4f}")
-    return 1 - mean_acc               # 最小化する値＝ 1-Accuracy
+    mean_acc = sum(acc)/len(acc)
+    trial.set_user_attr("cv_acc", mean_acc)
+    print(f"Trial {trial.number:>2} │ Acc={mean_acc:.4f}")
+    return 1 - mean_acc
 
 def main():
+    # ------ Quiet warnings ------
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    warnings.filterwarnings("ignore", category=pd.errors.PerformanceWarning)
+
     # --- Load data ---
     # Assumes train.csv and test.csv are in a 'data' subdirectory 
     # relative to where this script is run.
@@ -69,9 +71,17 @@ def main():
     print("Optuna search (leak-free CV)…")
     study = optuna.create_study(direction="minimize",
                                 sampler=optuna.samplers.TPESampler(seed=SEED))
-    import warnings, lightgbm as lgbm_warn
-    warnings.filterwarnings("ignore", category=FutureWarning)
-    study.optimize(lambda t: objective(t, X_df, y), n_trials=50, show_progress_bar=True)
+    study.optimize(lambda t: objective(t, X_df, y), n_trials=50, show_progress_bar=False)
+
+    # ------ Summary ------
+    best_err = study.best_value
+    best_acc = 1 - best_err
+    all_acc  = [t.user_attrs["cv_acc"] for t in study.trials]
+    mean_acc = sum(all_acc)/len(all_acc)
+    print("\n===== Optuna Summary =====")
+    print(f"  Best CV Accuracy : {best_acc:.4f}")
+    print(f"  Mean CV Accuracy : {mean_acc:.4f}")
+    print("==========================\n")
 
     best = {
         **study.best_params,                       # Optuna が探索した値
