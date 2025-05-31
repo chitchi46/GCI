@@ -1,5 +1,5 @@
 # --- compe1/utils/mlflow_helper.py --------------------------
-import os, signal, subprocess, atexit, time
+import os, signal, subprocess, atexit, time, re
 from pathlib import Path
 from typing import Tuple, Optional
 
@@ -60,17 +60,29 @@ def start_mlflow_server_and_ngrok_tunnel(
     )
 
     # ngrok が URL を吐くまでログを少し読む
-    for _ in range(30):                    # ≒ 3 秒以内
-        line = _NGROK_PROC.stdout.readline().strip()
-        if "url=" in line:
-            # line 例: t=... lvl=info msg=\"started tunnel\" obj=tunnels name=... url=http://xxx.ngrok-free.app
-            for part in line.split():
-                if part.startswith("url=") and part.endswith(".app"):
-                    _UI_URL = part.split("=", 1)[1].replace("http://", "https://")
-                    break
-        if _UI_URL:
+    _UI_URL = None # ループ前に初期化
+    for _ in range(120):                    # ≒ 12 秒待つ
+        line = ""
+        if _NGROK_PROC.stdout:
+            line = _NGROK_PROC.stdout.readline().strip() # text=Trueなら既にstr, decode不要
+        
+        print(f"[DEBUG ngrok line] {line}") # デバッグ出力
+        
+        # 現在のURLパースロジック (より堅牢な正規表現に変更する)
+        # if "url=" in line:
+        #    for part in line.split():
+        #        if part.startswith("url=") and part.endswith(".app"):
+        #            _UI_URL = part.split("=", 1)[1].replace("http://", "https://")
+        #            break
+        m = re.search(r"url=(https://[0-9a-z\-]+\.ngrok-free\.app)", line) # ngrok-free.app に対応した正規表現
+        if m:
+            _UI_URL = m.group(1) # キャプチャグループ1 (https://...) を取得
             break
-        time.sleep(0.1)
+
+        if not line and _NGROK_PROC.poll() is not None:
+            print("[WARN] ngrok process may have exited prematurely or stdout is closed.")
+            break
+        time.sleep(0.1)              # 待機
 
     print(f"MLflow UI: {_UI_URL or '(URL not found)'}")
 
