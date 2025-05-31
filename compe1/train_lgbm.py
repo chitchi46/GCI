@@ -2,27 +2,40 @@
 import lightgbm as lgb, optuna, pandas as pd, warnings, sys, mlflow
 from pathlib import Path
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.metrics import accuracy_score
 from compe1.preprocessing import TitanicPreprocessor # Updated import
 from compe1.utils.mlflow_helper import start_mlflow_ui
+from compe1.src.config import CV_PARAMS # 追加
 
 THIS_DIR = Path(__file__).resolve().parent
 DATA_DIR = THIS_DIR / "data"          # → compe1/data
-N_SPLITS = 5
 SEED     = 42
+
+# ---- CV split helper ----------------------------------
+def make_train_valid_split(X_df, y):
+    if CV_PARAMS["type"] == "holdout":
+        # stratify には目的変数 y を使用する (もしX_dfのカラムで層化したい場合は別途処理検討)
+        return train_test_split(
+            X_df, y,
+            test_size = CV_PARAMS["test_size"],
+            stratify  = y, # CV_PARAMS["stratify_cols"] を使う場合は X_df[CV_PARAMS["stratify_cols"]] だが、多次元になる可能性あり
+            random_state = CV_PARAMS["random_state"]
+        )
+    # KFoldのロジックも必要であればここに追加
+    raise ValueError(f"Unsupported CV type: {CV_PARAMS['type']}")
 
 def objective(trial, X_df, y):
     params = {
         "boosting_type": trial.suggest_categorical("boost", ["gbdt","dart","goss"]),
-        "num_leaves":    trial.suggest_int("num_leaves",  8, 64, step=4),
-        "max_depth":     trial.suggest_int("max_depth",   3, 10),
+        "num_leaves":    trial.suggest_int("num_leaves", 16, 32, step=4),
+        "max_depth":     trial.suggest_int("max_depth",  3,  5),
         "learning_rate": trial.suggest_float("lr",       0.01, 0.2, log=True),
         "min_child_samples": trial.suggest_int("min_child", 10, 40),
         "subsample":     trial.suggest_float("subsample", 0.6, 1.0),
         "colsample_bytree": trial.suggest_float("colsample", 0.6, 1.0),
         "lambda_l1":     trial.suggest_float("l1", 0.0, 5.0),
-        "lambda_l2":     trial.suggest_float("l2", 0.0, 5.0),
+        "lambda_l2":     5.0, # 固定値
         "n_estimators":  800,
         "objective":     "binary",
         # LightGBM 側の metric は使わず、後で Accuracy を自前評価
@@ -32,27 +45,22 @@ def objective(trial, X_df, y):
         "n_jobs":        -1,
     }
 
-    cv = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
-    acc = []
-    for train_idx, valid_idx in cv.split(X_df, y):
-        X_tr, X_val = X_df.iloc[train_idx], X_df.iloc[valid_idx]
-        y_tr, y_val = y[train_idx], y[valid_idx]
+    # ホールドアウト検証に変更
+    X_tr, X_val, y_tr, y_val = make_train_valid_split(X_df, y)
 
-        pipe = Pipeline([
-            ("prep", TitanicPreprocessor()),
-            ("clf",  lgb.LGBMClassifier(**params))
-        ])
+    pipe = Pipeline([
+        ("prep", TitanicPreprocessor()),
+        ("clf",  lgb.LGBMClassifier(**params))
+    ])
 
-        pipe.fit(X_tr, y_tr)
-        preds = pipe.predict(X_val)
-        fold_acc = accuracy_score(y_val, preds)
-        acc.append(fold_acc)
+    pipe.fit(X_tr, y_tr)
+    preds = pipe.predict(X_val)
+    acc_score = accuracy_score(y_val, preds)
 
     # Optuna に渡す値
-    mean_acc = sum(acc)/len(acc)
-    trial.set_user_attr("cv_acc", mean_acc)
-    print(f"Trial {trial.number:>2} │ Acc={mean_acc:.4f}")
-    return 1 - mean_acc
+    trial.set_user_attr("accuracy", acc_score) # ユーザー属性名を変更
+    print(f"Trial {trial.number:>2} │ Acc={acc_score:.4f}")
+    return 1 - acc_score # 最小化問題なので 1 - accuracy
 
 def main():
     # MLflow UI & ngrok を起動
@@ -85,11 +93,12 @@ def main():
     # ------ Summary ------
     best_err = study.best_value
     best_acc = 1 - best_err
-    all_acc  = [t.user_attrs["cv_acc"] for t in study.trials]
-    mean_acc = sum(all_acc)/len(all_acc)
+    # Optuna trial の user_attrs から精度を取得 (存在しない場合のエラーハンドリングも考慮)
+    all_acc  = [t.user_attrs["accuracy"] for t in study.trials if "accuracy" in t.user_attrs]
+    mean_acc = sum(all_acc)/len(all_acc) if all_acc else 0 # all_accが空の場合の対処
     print("\n===== Optuna Summary =====")
-    print(f"  Best CV Accuracy : {best_acc:.4f}")
-    print(f"  Mean CV Accuracy : {mean_acc:.4f}")
+    print(f"  Best Accuracy : {best_acc:.4f}")
+    print(f"  Mean Accuracy : {mean_acc:.4f}")
     print("==========================\n")
 
     best = {

@@ -44,4 +44,12 @@ RANDOM_STATE = 42 # 実験全体のランダムシード (main.pyでの参照用
 N_TRIALS_OPTUNA = 50 # Optunaの試行回数
 
 # MLflow 設定
-DEFAULT_EXPERIMENT_NAME = "Titanic_Survival_Prediction" 
+DEFAULT_EXPERIMENT_NAME = "Titanic_Survival_Prediction"
+
+# CV設定
+CV_PARAMS = {
+  'type': 'holdout',
+  'test_size': 0.2,
+  'stratify_cols': ["Sex","Pclass"],
+  'random_state': 42
+} 
