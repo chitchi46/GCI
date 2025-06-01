@@ -4,12 +4,12 @@
 
 # ファイルパス (リポジトリルートからの相対パスを想定)
 # main.py が compe1 ディレクトリ直下にある想定なので、そこからの相対パス
-TRAIN_DATA_PATH = "compe1/data/train.csv"
-TEST_DATA_PATH = "compe1/data/test.csv"
-SAMPLE_SUBMISSION_PATH = "compe1/data/sample_submission.csv"
-OUTPUT_DIR = "compe1/results/" # main.py から見たパス
-MODEL_DIR = "compe1/models/"   # main.py から見たパス
-EXP_LOG_PATH = "compe1/results/exp_log.csv" # main.py から見たパス
+TRAIN_DATA_PATH = "data/train.csv"
+TEST_DATA_PATH = "data/test.csv"
+SAMPLE_SUBMISSION_PATH = "data/sample_submission.csv"
+OUTPUT_DIR = "results/"
+MODEL_DIR = "models/"
+EXP_LOG_PATH = "results/exp_log.csv"
 
 # カラム名
 TARGET_COLUMN = "Perished" # 目的変数 (README.ipynb より)
@@ -44,4 +44,16 @@ RANDOM_STATE = 42 # 実験全体のランダムシード (main.pyでの参照用
 N_TRIALS_OPTUNA = 30 # Optunaの試行回数を30に変更
 
 # MLflow 設定
-DEFAULT_EXPERIMENT_NAME = "Titanic_Survival_Prediction" 
+DEFAULT_EXPERIMENT_NAME = "Titanic_Survival_Prediction"
+MLFLOW_TRACKING_URI = "mlruns" # MLflowのトラッキングURI (相対パス or 絶対パス)
+# MLFLOW_EXPERIMENT_NAME = "GCI_Compe1_Titanic" # MLflowの実験名 (指定しない場合は Default)
+
+# 特徴量エンジニアリング関連の定数
+# 例: AGE_BINS = [0, 10, 20, 30, 40, 50, 60, 120]
+# 例: FARE_BINS = [-1, 0, 8, 15, 30, 100, 600] # log1p(Fare) を想定
+
+# 前処理関連の定数
+# 例: MISSING_AGE_STRATEGY = 'median' # 'mean', 'median', model-based, etc.
+
+# その他
+# LOG_LEVEL = "INFO" # loggingのレベル 
