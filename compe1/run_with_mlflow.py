@@ -21,10 +21,7 @@ def parse_args():
 
 # ── 2. autolog ＆ 学習 ───────────────────────────
 mlflow.set_experiment("Titanic_LGBM_Optuna")
-mlflow.autolog( # ← こちらは disable_callbacks を受け付ける
-    log_models=True,
-    disable_callbacks=["log_feature_importance_plot"]
-)
+mlflow.autolog(log_models=True)
 
 if __name__ == "__main__":
     args = parse_args()
