@@ -2,10 +2,11 @@
 import os, signal, subprocess, atexit, time, re
 from pathlib import Path
 from typing import Tuple, Optional
+import sys # sysモジュールをインポート
 
 _MLFLOW_PROC: Optional[subprocess.Popen] = None
-_NGROK_PROC:  Optional[subprocess.Popen] = None
-_UI_URL:      Optional[str]              = None
+_NGROK_PROC:  Optional[subprocess.Popen] = None           # subprocess.Popen オブジェクト
+_UI_URL:      Optional[str]              = None           # 取得できた URL 文字列
 
 def _kill(proc: Optional[subprocess.Popen], name: str):
     """Kill a subprocess and its process-group (Linux / Colab)."""
@@ -61,30 +62,54 @@ def start_mlflow_server_and_ngrok_tunnel(
 
     # ngrok が URL を吐くまでログを少し読む
     _UI_URL = None # ループ前に初期化
-    for _ in range(120):                    # ≒ 12 秒待つ
-        line = ""
-        if _NGROK_PROC.stdout:
-            line = _NGROK_PROC.stdout.readline().strip() # text=Trueなら既にstr, decode不要
+
+    # ngrokの出力からURLを抽出するための正規表現パターン。
+    # 例: "url=https://xxxxxxxx.ngrok-free.app"
+    # ユーザーはURLそのもののパターンを提示したが、ngrokのログ形式 "url=XXX" を考慮する。
+    # 既存の正規表現 `r"url=(https://[0-9a-z\-]\+\.ngrok-free\.app)"` は `ngrok-free.app` のみだったが、
+    # ユーザー提示の `r"https://[0-9a-z\-]\+\.ngrok(-free)?\.app"` は `ngrok.app` と `ngrok-free.app` の両方に対応する。
+    # これを組み合わせる。
+    url_extract_pat = re.compile(r"url=(https://[0-9a-z\-]+\.ngrok(?:-free)?\.app)")
+
+    deadline = time.time() + 20 # timeout 20秒
+
+    log_buffer = [] # デバッグ用にログを一時的に保存
+
+    while time.time() < deadline:
+        if not _NGROK_PROC.stdout: # stdoutがNoneの場合は読み取り不可
+            print("[WARN] ngrok stdout is not available.", file=sys.stderr)
+            break
+            
+        line = _NGROK_PROC.stdout.readline() # text=True なので str
+        if not line: # readlineがEOFまたは空行を返した場合
+            if _NGROK_PROC.poll() is not None: # プロセスが終了したか確認
+                print("[WARN] ngrok process exited prematurely while reading stdout.", file=sys.stderr)
+                break
+            time.sleep(0.1) # プロセスは生きているが新しい行がない場合、少し待つ
+            continue
         
-        print(f"[DEBUG ngrok line] {line}") # デバッグ出力
+        line = line.strip()
+        print("[ngrok]", line, file=sys.stderr)
         
-        # 現在のURLパースロジック (より堅牢な正規表現に変更する)
-        # if "url=" in line:
-        #    for part in line.split():
-        #        if part.startswith("url=") and part.endswith(".app"):
-        #            _UI_URL = part.split("=", 1)[1].replace("http://", "https://")
-        #            break
-        m = re.search(r"url=(https://[0-9a-z\-]+\.ngrok-free\.app)", line) # ngrok-free.app に対応した正規表現
+        m = url_extract_pat.search(line)
         if m:
             _UI_URL = m.group(1) # キャプチャグループ1 (https://...) を取得
             break
+        log_buffer.append(line) # URLが見つからない場合、ログバッファに追加
+    
+    if _UI_URL is None:
+        # stdout ダンプ済みなので原因はログに残る
+        # 既存の警告メッセージは削除し、RuntimeErrorを発生させる
+        # print("[WARN] Could not find ngrok URL within timeout. Reviewing log buffer:", file=sys.stderr)
+        # for i, log_line in enumerate(log_buffer):
+        #     print(f"[ngrok log buffer {i+1}/{len(log_buffer)}] {log_line}", file=sys.stderr)
+        # if _NGROK_PROC.poll() is not None:
+        #      print("[WARN] ngrok process also exited.", file=sys.stderr)
+        raise RuntimeError("✖ ngrok URL を取得できませんでした。上の [ngrok] 行を確認してください。")
 
-        if not line and _NGROK_PROC.poll() is not None:
-            print("[WARN] ngrok process may have exited prematurely or stdout is closed.")
-            break
-        time.sleep(0.1)              # 待機
-
-    print(f"MLflow UI: {_UI_URL or '(URL not found)'}")
+    # MLflow UIのURLを新しいフォーマットで出力
+    print(f"MLflow UI ➜ {_UI_URL}")
+    # print(f"MLflow UI: {_UI_URL or '(URL not found)'}") # 古いprint文は削除
 
     return _UI_URL, _MLFLOW_PROC, _NGROK_PROC
 
