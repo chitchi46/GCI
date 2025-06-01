@@ -1,0 +1,2 @@
+timestamp,exp_id,CV_score,description,git_commit_hash
+20250601161053,exp_20250601161053,0.8383528968677421,Model with binned Age and Fare features.,94d1cfa
