@@ -24,7 +24,8 @@ def objective(trial: optuna.Trial, X: pd.DataFrame, y: pd.Series) -> float:
     params['reg_lambda'] = trial.suggest_float('reg_lambda', 1e-3, 1.0, log=True)
     
     # metric は accuracy に固定（あるいはconfigから読むようにする）
-    params['metric'] = 'accuracy' 
+    # params['metric'] = 'accuracy' # コメントアウト
+    params.pop('metric', None) # metricキーをparamsから削除
     # verbose も -1 に固定、seed も固定
     params['verbose'] = -1
     params['seed'] = config.RANDOM_SEED
@@ -34,20 +35,23 @@ def objective(trial: optuna.Trial, X: pd.DataFrame, y: pd.Series) -> float:
     # train_model は現在、モデルのリスト、oof予測、test予測、CVスコアのタプルを返す。
     # ここではCVスコアのみが必要。
     try:
+        # モデル学習の実行 (trainer.py の train_model を使用)
+        # チューニング時はテストデータに対する予測は不要なので、X_test には空のDataFrameを渡す
+        # また、チューニングの目的はCVスコアの最大化なので、モデル自体やOOF予測はここでは使用しない
         _, _, _, cv_score = train_model(
-            X_train=X,
-            y_train=y,
+            X=X, # X_train に相当
+            y=y, # y_train に相当
             X_test=pd.DataFrame(), # テストデータはチューニング時には不要なので空のDFを渡す
             params=params,
             n_splits=config.N_SPLITS_CV,
-            random_seed=config.RANDOM_STATE
+            random_seed=config.RANDOM_SEED
         )
-        return cv_score # Accuracy を最大化する
+        return cv_score
     except Exception as e:
         print(f"An error occurred during trial: {e}")
-        # エラーが発生した場合、この試行を失敗として扱い、Optunaに低い値を返す
-        # (あるいは optuna.exceptions.TrialPruned() をraiseする)
-        return -1.0 # または適切なエラー値
+        import traceback # tracebackをインポート
+        print(traceback.format_exc()) # スタックトレースを出力
+        return -1.0 # エラー時はスコアを-1.0として返す
 
 def run_tuning(X_train: pd.DataFrame, y_train: pd.Series) -> dict:
     """Optuna を使ったハイパーパラメータチューニングを実行する"""
