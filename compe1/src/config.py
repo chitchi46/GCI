@@ -4,12 +4,12 @@
 
 # ファイルパス (リポジトリルートからの相対パスを想定)
 # main.py が compe1 ディレクトリ直下にある想定なので、そこからの相対パス
-TRAIN_DATA_PATH = "data/train.csv"
-TEST_DATA_PATH = "data/test.csv"
-SAMPLE_SUBMISSION_PATH = "data/sample_submission.csv"
-OUTPUT_DIR = "results/" # main.py から見たパス
-MODEL_DIR = "models/"   # main.py から見たパス
-EXP_LOG_PATH = "results/exp_log.csv" # main.py から見たパス
+TRAIN_DATA_PATH = "compe1/data/train.csv"
+TEST_DATA_PATH = "compe1/data/test.csv"
+SAMPLE_SUBMISSION_PATH = "compe1/data/sample_submission.csv"
+OUTPUT_DIR = "compe1/results/" # main.py から見たパス
+MODEL_DIR = "compe1/models/"   # main.py から見たパス
+EXP_LOG_PATH = "compe1/results/exp_log.csv" # main.py から見たパス
 
 # カラム名
 TARGET_COLUMN = "Perished" # 目的変数 (README.ipynb より)

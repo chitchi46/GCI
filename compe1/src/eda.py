@@ -145,10 +145,17 @@ def visualize_feature_vs_target(
             # 1. ヒストグラム (目的変数別)
             fig_hist, ax_hist = plt.subplots(figsize=(12, 7))
             try: # KDE計算でエラーが出ることがある (e.g. データ点が少なすぎる)
-                sns.histplot(data=df, x=feature_col, hue=target_col, kde=True, multiple="stack", ax=ax_hist, palette="viridis", bins=30) # bins調整
+                # sns.histplot(data=df, x=feature_col, hue=target_col, kde=True, multiple="stack", ax=ax_hist, palette="viridis", bins=30) # bins調整
+                # 目的変数ごとにヒストグラムをプロットし、それぞれにラベルを付ける
+                for target_value in sorted(df[target_col].unique()):
+                    # sns.histplot(df[df[target_col] == target_value][feature_col], kde=True, ax=ax_hist, label=f'{target_col} {target_value}', palette="viridis", bins=30)
+                    sns.histplot(df[df[target_col] == target_value][feature_col], kde=True, ax=ax_hist, label=f'{target_col} {target_value}', bins=30) # palette を削除
             except RuntimeError as e_kde:
                 print(f"Could not plot KDE for {feature_col} (Error: {e_kde}). Plotting without KDE.")
-                sns.histplot(data=df, x=feature_col, hue=target_col, kde=False, multiple="stack", ax=ax_hist, palette="viridis", bins=30)
+                # sns.histplot(data=df, x=feature_col, hue=target_col, kde=False, multiple="stack", ax=ax_hist, palette="viridis", bins=30)
+                for target_value in sorted(df[target_col].unique()):
+                    # sns.histplot(df[df[target_col] == target_value][feature_col], kde=False, ax=ax_hist, label=f'{target_col} {target_value}', palette="viridis", bins=30)
+                    sns.histplot(df[df[target_col] == target_value][feature_col], kde=False, ax=ax_hist, label=f'{target_col} {target_value}', bins=30) # palette を削除
 
             ax_hist.set_title(f'{feature_col} Distribution by {target_col}', fontsize=16)
             ax_hist.set_xlabel(feature_col, fontsize=12)
@@ -163,7 +170,8 @@ def visualize_feature_vs_target(
 
             # 2. ボックスプロット (目的変数別)
             fig_box, ax_box = plt.subplots(figsize=(10, 7)) # 少し幅を狭く
-            sns.boxplot(x=target_col, y=feature_col, data=df, ax=ax_box, palette="viridis", showfliers=True) # 外れ値も表示
+            # sns.boxplot(x=target_col, y=feature_col, data=df, ax=ax_box, palette="viridis", showfliers=True) # 外れ値も表示
+            sns.boxplot(x=target_col, y=feature_col, hue=target_col, data=df, ax=ax_box, palette="viridis", showfliers=True, legend=False) # hueとlegendを追加
             ax_box.set_title(f'{feature_col} vs {target_col} (Box Plot)', fontsize=16)
             ax_box.set_xlabel(target_col, fontsize=12) # X軸はtarget_col
             ax_box.set_ylabel(feature_col, fontsize=12) # Y軸はfeature_col

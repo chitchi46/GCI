@@ -38,7 +38,8 @@ def preprocess_data(train_df: pd.DataFrame, test_df: pd.DataFrame) -> tuple[pd.D
     combined_df['Sex'] = combined_df['Sex'].map({'male': 0, 'female': 1}).astype(int)
 
     # Embarked の欠損値を最頻値で補完 & エンコード
-    combined_df['Embarked'].fillna(combined_df['Embarked'].mode()[0], inplace=True)
+    # combined_df['Embarked'].fillna(combined_df['Embarked'].mode()[0], inplace=True)
+    combined_df['Embarked'] = combined_df['Embarked'].fillna(combined_df['Embarked'].mode()[0])
     embarked_mapping = {'S': 0, 'C': 1, 'Q': 2}
     combined_df['Embarked'] = combined_df['Embarked'].map(embarked_mapping)
     
@@ -51,7 +52,8 @@ def preprocess_data(train_df: pd.DataFrame, test_df: pd.DataFrame) -> tuple[pd.D
     combined_df['Deck_Encoded_For_Age'] = deck_le_for_age.fit_transform(combined_df['Deck'])
 
     # 4. Fareの欠損値を中央値で補完 (テストデータに1件ある)
-    combined_df['Fare'].fillna(combined_df['Fare'].median(), inplace=True)
+    # combined_df['Fare'].fillna(combined_df['Fare'].median(), inplace=True)
+    combined_df['Fare'] = combined_df['Fare'].fillna(combined_df['Fare'].median())
 
     # 5. Age の欠損値補完 (モデルベース - 線形回帰)
     print("Imputing Age using Linear Regression...")
@@ -73,9 +75,11 @@ def preprocess_data(train_df: pd.DataFrame, test_df: pd.DataFrame) -> tuple[pd.D
             for col in X_age_train.columns:
                 if X_age_train[col].isnull().any():
                     median_val = X_age_train[col].median() # Fit on train part only
-                    X_age_train[col].fillna(median_val, inplace=True)
+                    # X_age_train[col].fillna(median_val, inplace=True)
+                    X_age_train[col] = X_age_train[col].fillna(median_val)
                     if col in X_age_predict.columns:
-                         X_age_predict[col].fillna(median_val, inplace=True)
+                         # X_age_predict[col].fillna(median_val, inplace=True)
+                         X_age_predict[col] = X_age_predict[col].fillna(median_val)
 
         lr_age = LinearRegression()
         lr_age.fit(X_age_train, y_age_train)
@@ -88,7 +92,8 @@ def preprocess_data(train_df: pd.DataFrame, test_df: pd.DataFrame) -> tuple[pd.D
         print("Age imputation finished.")
     elif age_known.empty:
         print("Warning: No data with known Age to train imputation model. Filling Age with overall median.")
-        combined_df['Age'].fillna(combined_df['Age'].median(), inplace=True) 
+        # combined_df['Age'].fillna(combined_df['Age'].median(), inplace=True) 
+        combined_df['Age'] = combined_df['Age'].fillna(combined_df['Age'].median())
     else:
         print("No missing Age values to impute or no data to predict for.")
 
