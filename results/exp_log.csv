@@ -1,0 +1,14 @@
+timestamp,exp_id,CV_score,description,git_commit_hash
+20250603205014,exp_20250603205014,0.830883183729835,Model with binned Age and Fare features.,fdc8556
+20250603212819,exp_20250603212819,0.830883183729835,Model with binned Age and Fare features.,fdc8556
+20250603232604,exp_20250603232604,0.830883183729835,Model with binned Age and Fare features.,fdc8556
+20250603234549,exp_20250603234549,0.830883183729835,Model with binned Age and Fare features.,fdc8556
+20250603235334,exp_20250603235334,0.830883183729835,Model with binned Age and Fare features.,fdc8556
+20250604001449,exp_20250604001449,0.830883183729835,Model with binned Age and Fare features.,fdc8556
+20250604001744,exp_20250604001744,0.830883183729835,Model with binned Age and Fare features.,fdc8556
+20250604003327,exp_20250604003327,0.830883183729835,Model with binned Age and Fare features.,fdc8556
+20250604004554,exp_20250604004554,0.830883183729835,Model with binned Age and Fare features.,fdc8556
+20250605155636,exp_20250605155636,0.8797065915970043,Model with RepeatedStratifiedKFold CV and enhanced feature importance tracking.,fdc8556
+20250605161339,exp_20250605161339,0.8797065915970043,Model with RepeatedStratifiedKFold CV and enhanced feature importance tracking.,fdc8556
+20250605161420,exp_20250605161420,0.8797065915970043,Model with RepeatedStratifiedKFold CV and enhanced feature importance tracking.,fdc8556
+20250605163227,exp_20250605163227,0.8797065915970043,Model with RepeatedStratifiedKFold CV and enhanced feature importance tracking.,fdc8556
