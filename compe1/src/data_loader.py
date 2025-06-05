@@ -79,4 +79,4 @@ def check_data_integrity(df: pd.DataFrame, df_name: str):
         df.drop_duplicates(inplace=True)
         print(f"削除後のShape: {df.shape}")
     print(f"--- {df_name} の整合性チェック完了 ---")
-    return df # 重複削除後のDataFrameを返す場合があるため 
+    return df # 重複削除後のDataFrameを返す場合があるため

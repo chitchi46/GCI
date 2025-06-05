@@ -10,4 +10,4 @@ def average_predictions(predictions: list) -> np.ndarray:
 def majority_vote_predictions(predictions: list) -> np.ndarray:
     """複数の予測結果で多数決を取る関数 (ハードボーティング)"""
     # TODO: 実装
-    pass 
+    pass

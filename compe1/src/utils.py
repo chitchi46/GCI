@@ -116,4 +116,4 @@ def log_experiment_results(timestamp, exp_id, cv_score, description, git_commit_
             os.makedirs(log_dir)
         log_df = new_log
     log_df.to_csv(exp_log_path, index=False)
-    print(f"Experiment results logged to: {exp_log_path}") 
+    print(f"Experiment results logged to: {exp_log_path}")

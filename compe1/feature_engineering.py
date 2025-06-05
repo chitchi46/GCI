@@ -58,4 +58,4 @@ def add_basic_features(df: pd.DataFrame) -> pd.DataFrame:
     # Fare per person
     out["FarePP"] = out["Fare"] / out["FamilySize"]
 
-    return out 
+    return out

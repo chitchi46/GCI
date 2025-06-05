@@ -109,4 +109,4 @@ class TitanicPreprocessor(BaseEstimator, TransformerMixin):
         # Fare per person
         out["FarePP"] = out["Fare"] / out["FamilySize"]
 
-        return out 
+        return out

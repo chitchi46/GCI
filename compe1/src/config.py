@@ -52,4 +52,4 @@ CV_PARAMS = {
   'test_size': 0.2,
   'stratify_cols': ["Sex","Pclass"],
   'random_state': 42
-} 
+}
