@@ -1,0 +1,27 @@
+=== FINAL OPTIMIZED SUBMISSION ===
+
+特徴量選択による最適化結果
+検証AUC: 0.8831
+特徴量数: 8 (元20個から最適化)
+予測生存率: 65.1%
+生存予測数: 272/418
+
+=== パフォーマンス改善履歴 ===
+1. ベースライン: 0.775 (公開リーダーボード)
+2. 前処理改善: 0.8+ (大幅改善)
+3. 特徴量選択: 0.8831 (さらに改善)
+
+使用特徴量 (重要度順):
+ 1. Sex_Age_Interaction      : 0.2239
+ 2. Sex                      : 0.1553
+ 3. Pclass_Fare_Interaction  : 0.1370
+ 4. Fare                     : 0.1093
+ 5. Title                    : 0.1050
+ 6. Age_Fare_Interaction     : 0.0962
+ 7. Age                      : 0.0872
+ 8. Pclass                   : 0.0861
+
+=== ファイル情報 ===
+作成日時: 2025-06-07 01:30:11
+提出ファイル: submission_optimized_20250607013011.csv
+ベストファイル: submission_best_features.csv
