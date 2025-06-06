@@ -9,6 +9,7 @@ import random
 import numpy as np
 import time
 import subprocess
+from pathlib import Path
 
 RESULTS_DIR = "../results"
 LOG_FILE_PATH = os.path.join(RESULTS_DIR, "exp_log.csv")
@@ -35,70 +36,66 @@ def log_experiment(experiment_id: str, cv_score: float, description: str):
 def save_submission_file(test_df, test_preds, exp_id):
     """
     提出ファイルを作成・保存する関数
-    output_dir は config から取得
+    output_dir は config から取得し、プロジェクトルート基準で解決
     """
+    PROJECT_ROOT = get_project_root()
     print("Creating submission file...")
-    # test_dfにはID_COLUMNが含まれている想定
     submission_df = pd.DataFrame({config.ID_COLUMN: test_df[config.ID_COLUMN], config.TARGET_COLUMN: (test_preds > 0.5).astype(int)})
     
-    output_dir = config.OUTPUT_DIR
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    output_dir_path = PROJECT_ROOT / config.OUTPUT_DIR
+    output_dir_path.mkdir(parents=True, exist_ok=True)
 
     submission_filename = f"submission_{exp_id}.csv"
-    submission_path = os.path.join(output_dir, submission_filename)
+    submission_path = output_dir_path / submission_filename
     submission_df.to_csv(submission_path, index=False)
     print(f"Submission file saved to: {submission_path}")
-    mlflow.log_artifact(submission_path)
-    return submission_path
+    mlflow.log_artifact(str(submission_path))
+    return str(submission_path)
 
 def save_model_artifact(models, exp_id, fold_number=None):
     """
     学習済みモデルを保存する関数
-    model_dir は config から取得
+    model_dir は config から取得し、プロジェクトルート基準で解決
     """
+    PROJECT_ROOT = get_project_root()
     print("Saving model artifact(s)...")
-    model_dir = config.MODEL_DIR
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
+    model_dir_path = PROJECT_ROOT / config.MODEL_DIR
+    model_dir_path.mkdir(parents=True, exist_ok=True)
 
-    model_path_to_log = None # ログする代表パス
+    model_path_to_log_str = None # ログする代表パス (文字列)
 
-    if fold_number is None: # ベースラインモデル (例: 最初のfoldのモデル)
-        model_filename = f"baseline.pkl" # 初期指示に合わせる
-        model_path = os.path.join(model_dir, model_filename)
-        if models: # models リストが空でないことを確認
+    if fold_number is None: 
+        model_filename = "baseline.pkl" 
+        model_path = model_dir_path / model_filename
+        if models: 
             joblib.dump(models[0], model_path)
             print(f"Baseline model artifact saved to: {model_path}")
-            model_path_to_log = model_path
+            model_path_to_log_str = str(model_path)
         else:
             print("No models to save for baseline.pkl")
-    else: # CVの場合の個別foldモデル保存（現状、呼び出し側でfold_number指定なし）
+    else: 
         model_filename = f"model_fold{fold_number}_{exp_id}.pkl"
-        model_path = os.path.join(model_dir, model_filename)
+        model_path = model_dir_path / model_filename
         if models and len(models) > fold_number -1:
             joblib.dump(models[fold_number-1], model_path)
             print(f"Model artifact for fold {fold_number} saved to: {model_path}")
-            # model_path_to_log = model_path # 個別foldもログする場合
+            # model_path_to_log_str = str(model_path) # 個別foldもログする場合
         else:
             print(f"Model for fold {fold_number} not found or list too short.")
 
-    # MLflowに物理ファイルを記録 (例: baseline.pkl)
-    if model_path_to_log and os.path.exists(model_path_to_log):
-        mlflow.log_artifact(model_path_to_log, artifact_path="joblib_models")
-
-    # MLflowにLightGBMモデル自体も記録 (mlflow.lightgbm.autolog() が有効なら通常不要だが明示的に行う場合)
-    # if models and mlflow.active_run(): # autologが有効でも重複してログ可能
-    #     mlflow.lightgbm.log_model(models[0], artifact_path="lgbm_model_explicit")
+    if model_path_to_log_str and Path(model_path_to_log_str).exists():
+        mlflow.log_artifact(model_path_to_log_str, artifact_path="joblib_models")
 
     print("Model artifact(s) saving finished.")
 
 def log_experiment_results(timestamp, exp_id, cv_score, description, git_commit_hash="N/A"):
     """
     実験結果をCSVに記録する関数
-    exp_log_path は config から取得
+    exp_log_path は config から取得し、プロジェクトルート基準で解決
     """
-    exp_log_path = config.EXP_LOG_PATH
+    PROJECT_ROOT = get_project_root()
+    exp_log_path_obj = PROJECT_ROOT / config.EXP_LOG_PATH
+    
     new_log = pd.DataFrame([{
         "timestamp": timestamp,
         "exp_id": exp_id,
@@ -106,14 +103,19 @@ def log_experiment_results(timestamp, exp_id, cv_score, description, git_commit_
         "description": description,
         "git_commit_hash": git_commit_hash
     }])
-    if os.path.exists(exp_log_path):
-        log_df = pd.read_csv(exp_log_path)
+    
+    log_dir_path = exp_log_path_obj.parent
+    log_dir_path.mkdir(parents=True, exist_ok=True)
+
+    if exp_log_path_obj.exists():
+        log_df = pd.read_csv(exp_log_path_obj)
         log_df = pd.concat([log_df, new_log], ignore_index=True)
     else:
-        # ディレクトリが存在しない場合は作成
-        log_dir = os.path.dirname(exp_log_path)
-        if not os.path.exists(log_dir) and log_dir != '': # log_dirが空文字でないことを確認
-            os.makedirs(log_dir)
         log_df = new_log
-    log_df.to_csv(exp_log_path, index=False)
-    print(f"Experiment results logged to: {exp_log_path}") 
+    log_df.to_csv(exp_log_path_obj, index=False)
+    print(f"Experiment results logged to: {exp_log_path_obj}")
+
+def get_project_root() -> Path:
+    # utils.py is in My_GCI_Compe1_Project/compe1/src/
+    # We need to go up three levels to reach My_GCI_Compe1_Project/
+    return Path(__file__).resolve().parent.parent.parent 

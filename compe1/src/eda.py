@@ -198,6 +198,77 @@ def visualize_feature_vs_target(
         if 'fig_hist' in locals() and fig_hist is not None: plt.close(fig_hist)
         if 'fig_box' in locals() and fig_box is not None: plt.close(fig_box)
 
+def visualize_feature_distribution_comparison(
+    train_series: pd.Series,
+    test_series: pd.Series,
+    feature_name: str,
+    output_dir: str = "results/eda_plots",
+    filename_prefix: str = "comparison_"
+):
+    """
+    指定された単一特徴量について、学習データとテストデータの分布を比較・可視化し、ファイルに保存する。
+    ヒストグラム/KDEプロットとボックスプロットを生成する。
+    """
+    if train_series.empty or test_series.empty:
+        print(f"Warning: Train or test series for {feature_name} is empty. Skipping visualization.")
+        return
+
+    # 出力ディレクトリが存在しない場合は作成
+    if not os.path.exists(output_dir):
+        try:
+            os.makedirs(output_dir)
+            print(f"Created directory for plots: {output_dir}")
+        except OSError as e:
+            print(f"Error creating directory {output_dir}: {e}. Plots will not be saved.")
+            return
+
+    plt.style.use('seaborn-v0_8-darkgrid')
+
+    def sanitize_filename(name_part):
+        return "".join(c if c.isalnum() or c in ['_', '-'] else '_' for c in str(name_part))
+
+    safe_feature_name = sanitize_filename(feature_name)
+    
+    print(f"Visualizing distribution comparison for {feature_name} (prefix: '{filename_prefix}')...")
+
+    try:
+        # 1. ヒストグラム/KDEプロットの比較
+        fig_dist, ax_dist = plt.subplots(figsize=(12, 7))
+        sns.histplot(train_series, color="blue", label='Train Data', kde=True, ax=ax_dist, stat="density", common_norm=False)
+        sns.histplot(test_series, color="red", label='Test Data', kde=True, ax=ax_dist, stat="density", common_norm=False)
+        ax_dist.set_title(f'{feature_name} Distribution: Train vs Test', fontsize=16)
+        ax_dist.set_xlabel(feature_name, fontsize=12)
+        ax_dist.set_ylabel('Density', fontsize=12)
+        ax_dist.legend()
+        plt.tight_layout()
+        save_path_dist = os.path.join(output_dir, f"{filename_prefix}{safe_feature_name}_distribution_comparison.png")
+        fig_dist.savefig(save_path_dist)
+        plt.close(fig_dist)
+        print(f"Distribution plot saved to {save_path_dist}")
+
+        # 2. ボックスプロットの比較
+        fig_box, ax_box = plt.subplots(figsize=(8, 6))
+        # pd.concatを使用して、どのデータ由来かを示す列を追加してboxplotに渡す
+        combined_df_for_boxplot = pd.concat([
+            train_series.rename("value"), 
+            test_series.rename("value")
+        ], keys=['Train', 'Test'], names=['Dataset']).reset_index()
+        
+        sns.boxplot(x='Dataset', y='value', data=combined_df_for_boxplot, ax=ax_box, palette={"Train": "skyblue", "Test": "salmon"})
+        ax_box.set_title(f'{feature_name} Box Plot: Train vs Test', fontsize=16)
+        ax_box.set_xlabel('Dataset', fontsize=12)
+        ax_box.set_ylabel(feature_name, fontsize=12)
+        plt.tight_layout()
+        save_path_box = os.path.join(output_dir, f"{filename_prefix}{safe_feature_name}_boxplot_comparison.png")
+        fig_box.savefig(save_path_box)
+        plt.close(fig_box)
+        print(f"Box plot saved to {save_path_box}")
+
+    except Exception as e:
+        print(f"An error occurred during visualization of {feature_name} comparison: {e}")
+        if 'fig_dist' in locals() and fig_dist is not None: plt.close(fig_dist)
+        if 'fig_box' in locals() and fig_box is not None: plt.close(fig_box)
+
 if __name__ == '__main__':
     print("Starting EDA script...")
     
