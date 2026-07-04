@@ -20,4 +20,4 @@ def save_model(model, model_name: str):
 def load_model(model_name: str):
     """学習済みモデルを読み込む関数"""
     # TODO: 実装
-    pass 
+    pass

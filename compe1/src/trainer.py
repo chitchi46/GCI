@@ -44,4 +44,4 @@ def train_model(X, y, X_test, params, n_splits, random_seed):
     print(f"Mean CV Accuracy: {mean_cv_score:.4f}")
     # mlflow.log_metric("mean_cv_accuracy", mean_cv_score) #これも呼び出し側で行う
     print("Model training finished.")
-    return models, oof_preds, test_preds, mean_cv_score 
+    return models, oof_preds, test_preds, mean_cv_score

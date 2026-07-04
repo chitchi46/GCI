@@ -132,4 +132,3 @@ def main():
 if __name__ == "__main__":
     # mainスコープでのosインポートは不要 (def main()内で完結、または def の中で import)
     main()
- 

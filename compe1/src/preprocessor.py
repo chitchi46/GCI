@@ -127,4 +127,4 @@ def preprocess_data(train_df: pd.DataFrame, test_df: pd.DataFrame) -> tuple[pd.D
     print(f"Features for training: {X.columns.tolist()}")
     print(f"Shape of X: {X.shape}, Shape of y: {y.shape}, Shape of X_test: {X_test.shape}")
     print("Preprocessing finished.")
-    return X, y, X_test 
+    return X, y, X_test

@@ -115,4 +115,4 @@ def objective_lgbm(trial, X: pd.DataFrame, y: pd.Series, n_splits: int = 5, rand
 def run_optuna_lgbm(X: pd.DataFrame, y: pd.Series, n_trials: int = 100, n_splits: int = 5, random_state: int = 42) -> optuna.study.Study:
     """LightGBM の Optuna チューニングを実行する関数"""
     # TODO: 実装
-    pass 
+    pass

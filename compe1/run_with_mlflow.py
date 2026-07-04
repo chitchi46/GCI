@@ -49,4 +49,4 @@ if __name__ == "__main__":
         print("Interrupted by user.")
     finally:
         stop_mlflow_ui()
-        print("Cleaned up MLflow & ngrok.") 
+        print("Cleaned up MLflow & ngrok.")

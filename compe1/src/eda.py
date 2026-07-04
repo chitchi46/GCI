@@ -265,4 +265,4 @@ if __name__ == '__main__':
     # visualize_feature_vs_target(test_data, 'Sex', 'Age', output_dir=TEST_OUTPUT_DIR, filename_prefix="cat_target_issue_")
 
     print(f"\nTest visualizations saved in {TEST_OUTPUT_DIR}")
-    print("Please check the directory for output files.") 
+    print("Please check the directory for output files.")

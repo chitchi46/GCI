@@ -101,4 +101,4 @@ def create_features(df: pd.DataFrame) -> pd.DataFrame:
 def select_features(df: pd.DataFrame, target_col: str) -> list:
     """特徴量選択を行う関数"""
     # TODO: 実装
-    pass 
+    pass
